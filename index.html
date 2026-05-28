@@ -260,14 +260,13 @@
 </head>
 <body>
 
-    <!-- 会员状态条 -->
     <div class="membership-bar" id="membershipBar">⏳ 会员状态加载中...</div>
 
     <!-- 激活弹窗 -->
     <div id="activationModal" class="modal-overlay" style="display:none;">
         <div class="modal">
             <h2>🔐 需要激活会员</h2>
-            <p>输入激活码以使用全部功能。<br>每个激活码仅限一台设备使用一次。</p>
+            <p>输入激活码以使用全部功能。</p>
             <input type="text" class="activation-input" id="activationCode" placeholder="请输入激活码">
             <div class="activation-error" id="activationError"></div>
             <button onclick="activate()">✨ 激活</button>
@@ -275,7 +274,6 @@
         </div>
     </div>
 
-    <!-- 浮动帮助按钮 -->
     <div class="help-float" onclick="openHelp()">📘 使用指南</div>
 
     <h1>🎓 俄语答辩朗读练习 <span style="font-size:0.8em;color:#888;">— твой голос, твоя защита</span></h1>
@@ -310,7 +308,7 @@
         <p style="font-size:0.9em;color:#6b7a99;">按句号、问号、感叹号自动分句</p>
     </div>
 
-    <!-- 数字/年份转换器卡片 -->
+    <!-- 数字/年份转换器 -->
     <div class="card" id="numberConverterCard">
         <h2>🔢 数字/年份/百分数转换器</h2>
         <p style="color:#555;">支持整数、小数（用点或逗号）、百分号（%）。例如：2023、3.14、25%、1500、0.5</p>
@@ -369,7 +367,7 @@
                 <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式与口语标准，点击“分析重音”。</li>
                 <li><strong>查看重音与翻译：</strong>系统自动为每个单词标注重音（ё 不重复标），点击单词可看中文翻译。</li>
                 <li><strong>调整语速与数字转换：</strong>可拖动语速滑块，下方数字转换器帮你读年份/百分数。</li>
-                <li><strong>分句练习：</strong>🔊 听示范，⏸️暂停，⏹️停止，🔁循环。点击 <strong>开始</strong> 录音，读完后按 <strong>结束</strong> 查看评分。</li>
+                <li><strong>分句练习：</strong>🔊 听示范，⏸️暂停，⏹️停止，🔁循环。点击 🎤开始 录音，读完后按 ⏹️结束 查看评分。</li>
                 <li><strong>全篇模拟：</strong>按所选模式计时朗读，结束后评分。口语标准决定达标门槛（60%/75%/85%/90%）。</li>
                 <li><strong>修改稿件：</strong>练习页底部有“✏️ 修改稿件”，可随时返回修改。</li>
                 <li><strong>📌 公用激活码：</strong>输入 <code>11111111</code> 可激活，有效期1小时，每日可激活一次。</li>
@@ -385,12 +383,21 @@
     <div id="translationPopup" class="translation-popup" style="display:none;"></div>
 
     <script>
-        // ========== 会员激活系统 ==========
+        // ========== 会员激活系统（含专属码） ==========
         const ACTIVATION_KEY = 'rus_accent_activation';
         const USED_CODES_KEY = 'rus_accent_used_codes';
         const FREE_ACTIVATION_DATE_KEY = 'rus_accent_free_date';
         const COUNTAPI_NS = 'russian-helper';
         let membershipTimer = null;
+
+        // 专属码配置：{ 激活码: 有效期（年） }
+        const SPECIAL_CODES = {
+            'xuanzs929': 100,
+            '小管555': 10,
+            '莫涵888': 10,
+            '安宁666': 10,
+            '马姐314': 10
+        };
 
         function getActivationData() {
             const raw = localStorage.getItem(ACTIVATION_KEY);
@@ -443,7 +450,7 @@
         }
         function saveActivation(expireTimestamp, codeHash) {
             localStorage.setItem(ACTIVATION_KEY, JSON.stringify({ expire: expireTimestamp }));
-            if (codeHash && codeHash !== 'FREE_MAGIC') {
+            if (codeHash && codeHash !== 'FREE_MAGIC' && !SPECIAL_CODES[codeHash]) {
                 let used = JSON.parse(localStorage.getItem(USED_CODES_KEY) || '[]');
                 if (!used.includes(codeHash)) {
                     used.push(codeHash);
@@ -494,9 +501,21 @@
                 return { success: false, message: '网络异常，激活验证失败，请检查网络后重试。' };
             }
         }
+
         async function activate() {
             const code = document.getElementById('activationCode').value.trim();
             if (!code) return;
+
+            // 检查是否为专属码
+            if (SPECIAL_CODES.hasOwnProperty(code)) {
+                const years = SPECIAL_CODES[code];
+                const expire = Date.now() + years * 365 * 24 * 60 * 60 * 1000;
+                saveActivation(expire, code);
+                alert(`✅ 专属码激活成功！有效期至 ${new Date(expire).toLocaleDateString()}`);
+                return;
+            }
+
+            // 公用码
             if (code === '11111111') {
                 const result = await tryFreeActivation();
                 if (result.success) {
@@ -506,6 +525,8 @@
                 }
                 return;
             }
+
+            // 普通付费激活码
             try {
                 const decoded = atob(code);
                 const parts = decoded.split('|');
@@ -551,7 +572,6 @@
             window.speechSynthesis.cancel();
             if (fullRecognition && isFullTestRunning) stopFullTest();
             loopSentenceIdx = -1;
-            // 清理所有单句语音
             for (let key in sentenceVoices) {
                 if (sentenceVoices[key]) {
                     sentenceVoices[key].utterance.onend = null;
@@ -602,12 +622,11 @@
             return parts ? parts.map(s => s.trim()).filter(s => s) : [text];
         }
 
-        // ========== 语音播放（修复手机无声、单句控制） ==========
+        // ========== 语音播放 ==========
         let speechRate = 0.9;
         let currentUtterance = null;
         let isPaused = false;
         let loopSentenceIdx = -1;
-        // 单句语音控制：存储每个句子的 utterance 和暂停状态
         let sentenceVoices = {};
 
         function updateRate(v) {
@@ -615,10 +634,8 @@
             document.getElementById('rateValue').textContent = v + 'x';
         }
 
-        // 统一的播放函数，自动处理手机静音激活
         function speak(text, onEnd, voiceId) {
             if (!requireActivation()) return;
-            // 激活语音引擎（解决 iOS 无声问题）
             if (window.speechSynthesis.speaking) {
                 window.speechSynthesis.cancel();
             }
@@ -631,7 +648,6 @@
                     updateSentenceVoiceButtons(voiceId, false);
                 }
                 if (onEnd) onEnd();
-                // 检查是否还有全局 utterance
                 if (currentUtterance === u) {
                     currentUtterance = null;
                     document.getElementById('globalPauseBtn').disabled = true;
@@ -643,7 +659,6 @@
                     updateSentenceVoiceButtons(voiceId, false);
                 }
             };
-            // 存储到全局或单句对象
             if (voiceId) {
                 sentenceVoices[voiceId] = { utterance: u, paused: false };
                 updateSentenceVoiceButtons(voiceId, true);
@@ -669,14 +684,11 @@
             }
         }
 
-        // 单句：播放、暂停、停止
         function playSentence(idx, loop = false) {
             if (!requireActivation()) return;
             const orig = originalSentences[idx];
             if (!orig) return;
-            // 如果已经有该句的语音在播放，则不再重新播放（除非被停止）
             if (sentenceVoices[idx]) {
-                // 如果暂停中，则继续
                 if (sentenceVoices[idx].paused) {
                     window.speechSynthesis.resume();
                     sentenceVoices[idx].paused = false;
@@ -698,12 +710,12 @@
             if (!sentenceVoices[idx]) return;
             window.speechSynthesis.pause();
             sentenceVoices[idx].paused = true;
-            updateSentenceVoiceButtons(idx, true); // 状态保持播放中但显示暂停可继续
+            updateSentenceVoiceButtons(idx, true);
         }
 
         function stopSentence(idx) {
             if (sentenceVoices[idx]) {
-                sentenceVoices[idx].utterance.onend = null; // 防止触发循环
+                sentenceVoices[idx].utterance.onend = null;
                 window.speechSynthesis.cancel();
                 delete sentenceVoices[idx];
                 updateSentenceVoiceButtons(idx, false);
@@ -715,7 +727,6 @@
             const stopBtn = document.getElementById('stopBtn'+idx);
             if (pauseBtn) pauseBtn.disabled = !isPlaying;
             if (stopBtn) stopBtn.disabled = !isPlaying;
-            // 可选改变图标
         }
 
         function toggleLoop(idx) {
@@ -1028,7 +1039,6 @@
             if (!requireActivation()) return;
             window.speechSynthesis.cancel();
             loopSentenceIdx = -1;
-            // 停止所有单句语音
             for (let key in sentenceVoices) {
                 if (sentenceVoices[key]) {
                     delete sentenceVoices[key];
