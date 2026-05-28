@@ -111,11 +111,12 @@
             background: white;
             border: 1px solid #ccd5f5;
             border-radius: 14px;
-            padding: 12px 16px;
+            padding: 14px 16px;
             box-shadow: 0 6px 18px rgba(0,0,0,0.15);
             z-index: 1000;
-            max-width: 320px;
+            max-width: 350px;
             font-size: 14px;
+            pointer-events: auto;
         }
         .diff-correct { color: green; }
         .diff-wrong { color: red; text-decoration: line-through; }
@@ -252,13 +253,22 @@
             border-left: 4px solid var(--primary);
         }
         .level-select { display: flex; align-items: center; gap: 8px; }
-        .correct-stress-popup {
-            display: flex; flex-direction: column; gap: 8px; margin-top: 12px;
-            border-top: 1px solid #eee; padding-top: 12px;
+        .vowel-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 10px 0;
         }
-        .correct-stress-popup input {
-            padding: 8px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px;
+        .vowel-btn {
+            background: #eef3ff;
+            border: 1px solid #aab7f0;
+            padding: 6px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: 0.1s;
         }
+        .vowel-btn:hover { background: #dce3ff; }
     </style>
 </head>
 <body>
@@ -281,7 +291,7 @@
     <h1>🎓 俄语答辩朗读练习 <span style="font-size:0.8em;color:#888;">— твой голос, твоя защита</span></h1>
 
     <div class="card" id="inputArea">
-        <div class="help-tip">💡 首次使用？请先点击右上角「📘 使用指南」阅读详细说明。<br>📌 点击带下划线的单词可以查看翻译并修正重音，修正后会自动记住。</div>
+        <div class="help-tip">💡 首次使用？请先点击右上角「📘 使用指南」阅读详细说明。<br>📌 点击带下划线的单词可以查看翻译并修正重音，点击元音即可改变重音位置。</div>
         <h2>📄 输入你的答辩稿</h2>
         <textarea id="textInput" placeholder="Вставьте текст защиты..."></textarea>
         <div class="mode-select">
@@ -310,7 +320,7 @@
         <p style="font-size:0.9em;color:#6b7a99;">按句号、问号、感叹号自动分句</p>
     </div>
 
-    <!-- 数字/年份转换器卡片 -->
+    <!-- 数字/年份转换器 -->
     <div class="card" id="numberConverterCard">
         <h2>🔢 数字/年份/百分数转换器</h2>
         <p style="color:#555;">支持整数、小数（用点或逗号）、百分号（%）。例如：2023、3.14、25%、1500、0.5</p>
@@ -332,14 +342,14 @@
         </div>
 
         <div class="warning-note">
-            ⚠️ 重音由内置词典+智能规则生成，字母 <strong>ё</strong> 已自动识别。如有不准，<strong>点击单词即可查看翻译并自行修正重音</strong>，修正后永久生效。
+            ⚠️ 重音由内置词典+智能规则生成，字母 <strong>ё</strong> 已自动识别。如有不准，<strong>点击单词</strong>，在弹窗中点击正确元音即可修正，修正后永久生效。
         </div>
 
-        <h2>📖 带重音的全文（点击单词查看翻译或修正重音）</h2>
+        <h2>📖 带重音的全文（点击单词可修正重音或翻译）</h2>
         <div class="accent" id="fullAccentedText"></div>
         <button onclick="speakFullText()">🔊 听全文示范</button>
         <hr>
-        <h3>✍️ 分句练习（点击单词查看翻译或修正重音）</h3>
+        <h3>✍️ 分句练习（点击单词可修正重音或翻译）</h3>
         <div id="sentencesList"></div>
         <hr>
         <h3>🏁 全篇模拟答辩</h3>
@@ -367,7 +377,7 @@
             <h2>📘 使用指南</h2>
             <ol class="help-steps">
                 <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式与口语标准，点击“分析重音”。</li>
-                <li><strong>查看重音与翻译：</strong>系统自动为每个单词标注重音（ё 不重复标），<strong>点击单词可看中文翻译，并可在弹窗中修正重音</strong>，修正后永久生效。</li>
+                <li><strong>查看重音与翻译：</strong>系统自动为每个单词标注重音（ё 不重复标），<strong>点击单词可看中文翻译，并可在弹窗中点击元音修正重音</strong>，修正后永久生效。</li>
                 <li><strong>调整语速与数字转换：</strong>可拖动语速滑块，下方数字转换器帮你读年份/百分数。</li>
                 <li><strong>分句练习：</strong>🔊 听示范，⏸️暂停，⏹️停止，🔁循环。点击 🎤开始 录音，读完后按 ⏹️结束 查看评分（录音不会自动停止）。</li>
                 <li><strong>全篇模拟：</strong>按所选模式计时朗读，点击开始后全程录音，读完后点击停止并评分。口语标准决定达标门槛（60%/75%/85%/90%）。</li>
@@ -573,7 +583,7 @@
             sentenceVoices = {};
         }
 
-        // ========== 重音系统（内置词典 + 用户修正 + 智能规则） ==========
+        // ========== 重音系统 ==========
         const stressDict = {
             "а":"а́","август":"а́вгуст","автомобиль":"автомоби́ль","адрес":"а́дрес","акция":"а́кция","алфавит":"алфави́т",
             "америка":"аме́рика","анализ":"ана́лиз","английский":"англи́йский","апрель":"апре́ль","армия":"а́рмия",
@@ -750,15 +760,9 @@
             "тайминг":"та́йминг","регламент":"регла́мент",
         };
 
-        // 用户修正词典
         let userStressDict = {};
-        try {
-            userStressDict = JSON.parse(localStorage.getItem('user_stress_dict') || '{}');
-        } catch(e) { userStressDict = {}; }
-
-        function saveUserDict() {
-            localStorage.setItem('user_stress_dict', JSON.stringify(userStressDict));
-        }
+        try { userStressDict = JSON.parse(localStorage.getItem('user_stress_dict') || '{}'); } catch(e) { userStressDict = {}; }
+        function saveUserDict() { localStorage.setItem('user_stress_dict', JSON.stringify(userStressDict)); }
 
         function addStress(word) {
             if (/[\u0301ёЁ]/.test(word)) return word;
@@ -782,10 +786,7 @@
             return word;
         }
 
-        function stressText(text) {
-            return text.replace(/[А-Яа-яЁё]+/g, addStress);
-        }
-
+        function stressText(text) { return text.replace(/[А-Яа-яЁё]+/g, addStress); }
         function removeAccents(str) { return str.normalize('NFD').replace(/[\u0301]/g, '').normalize('NFC'); }
         function cleanText(str) { return removeAccents(str).toLowerCase().replace(/[^а-яёa-z0-9\s]/gi, '').trim(); }
         function splitSentences(text) {
@@ -793,7 +794,6 @@
             return parts ? parts.map(s => s.trim()).filter(s => s) : [text];
         }
 
-        // 翻译单词
         async function translateWord(word) {
             const clean = removeAccents(word);
             const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=ru|zh`;
@@ -804,41 +804,61 @@
             return '翻译失败';
         }
 
-        // 显示翻译和修正弹窗
+        function getVowelsInWord(word) {
+            const vowels = 'аеёиоуыэюя';
+            const result = [];
+            for (let i = 0; i < word.length; i++) {
+                if (vowels.includes(word[i].toLowerCase())) {
+                    result.push({ index: i, char: word[i] });
+                }
+            }
+            return result;
+        }
+
+        function applyCorrection(cleanWord, vowelIndex) {
+            const vowels = 'аеёиоуыэюя';
+            const chars = cleanWord.split('');
+            if (vowelIndex >= 0 && vowelIndex < chars.length && vowels.includes(chars[vowelIndex].toLowerCase())) {
+                chars[vowelIndex] = chars[vowelIndex].normalize('NFD') + '\u0301';
+                const corrected = chars.join('');
+                userStressDict[cleanWord.toLowerCase()] = corrected;
+                saveUserDict();
+                // 更新页面上所有该单词
+                document.querySelectorAll('.word').forEach(span => {
+                    if (removeAccents(span.textContent).toLowerCase() === cleanWord.toLowerCase()) {
+                        span.textContent = corrected;
+                    }
+                });
+                document.getElementById('translationPopup').style.display = 'none';
+            }
+        }
+
         function showWordPopup(word, event) {
             const popup = document.getElementById('translationPopup');
             const cleanWord = removeAccents(word);
+            const vowelsList = getVowelsInWord(cleanWord);
+            const vowelBtns = vowelsList.map(v => 
+                `<button class="vowel-btn" onclick="event.stopPropagation(); applyCorrection('${cleanWord}', ${v.index})">${v.char}</button>`
+            ).join(' ');
 
-            // 立即显示弹窗框架
             popup.innerHTML = `
                 <div style="margin-bottom:8px;"><strong>${word}</strong>: <span id="popupTrans">翻译中...</span></div>
-                <div class="correct-stress-popup">
-                    <div style="font-size:0.85em;color:#555;margin-bottom:4px;">修正重音：</div>
-                    <input type="text" id="correctStressInput" value="${cleanWord}" placeholder="输入正确重音形式 (如 защи́та)">
-                    <button onclick="applyCorrection('${cleanWord}')">💾 保存修正</button>
-                </div>
+                <div style="font-size:0.85em;color:#555;margin:8px 0;">点击元音修正重音：</div>
+                <div class="vowel-options">${vowelBtns}</div>
             `;
+            // 智能定位
+            let left = event.pageX;
+            let top = event.pageY - 30;
+            if (left + 350 > window.innerWidth) left = window.innerWidth - 360;
+            if (top + 200 > window.innerHeight) top = window.innerHeight - 220;
+            popup.style.left = left + 'px';
+            popup.style.top = top + 'px';
             popup.style.display = 'block';
-            popup.style.left = event.pageX + 'px';
-            popup.style.top = (event.pageY - 30) + 'px';
 
-            // 异步获取翻译并更新
             translateWord(cleanWord).then(trans => {
                 const span = document.getElementById('popupTrans');
                 if (span) span.textContent = trans;
             });
-        }
-
-        function applyCorrection(cleanWord) {
-            const input = document.getElementById('correctStressInput');
-            if (!input) return;
-            const corrected = input.value.trim();
-            if (corrected) {
-                userStressDict[cleanWord.toLowerCase()] = corrected;
-                saveUserDict();
-                alert('修正已保存！请点击“修改稿件”返回并重新分析以刷新重音。');
-                document.getElementById('translationPopup').style.display = 'none';
-            }
         }
 
         function makeWordsClickable(html) {
@@ -847,136 +867,72 @@
             });
         }
 
-        // 点击其他地方关闭弹窗
-        document.addEventListener('click', (e) => {
-            if (!e.target.classList.contains('word')) {
-                document.getElementById('translationPopup').style.display = 'none';
+        // 点击弹窗外部关闭
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('translationPopup');
+            if (popup.style.display === 'block' && !popup.contains(e.target) && !e.target.classList.contains('word')) {
+                popup.style.display = 'none';
             }
         });
 
-        // ========== 语音播放（单句控制） ==========
+        // 阻止弹窗内部事件冒泡导致的关闭
+        document.getElementById('translationPopup').addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        // ========== 语音播放 ==========
         let speechRate = 0.9;
         let currentUtterance = null;
         let isPaused = false;
         let loopSentenceIdx = -1;
         let sentenceVoices = {};
 
-        function updateRate(v) {
-            speechRate = parseFloat(v);
-            document.getElementById('rateValue').textContent = v + 'x';
-        }
-
+        function updateRate(v) { speechRate = parseFloat(v); document.getElementById('rateValue').textContent = v + 'x'; }
         function speak(text, onEnd, voiceId) {
             if (!requireActivation()) return;
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'ru-RU';
-            u.rate = speechRate;
+            u.lang = 'ru-RU'; u.rate = speechRate;
             u.onend = () => {
-                if (voiceId) {
-                    delete sentenceVoices[voiceId];
-                    updateSentenceVoiceButtons(voiceId, false);
-                }
+                if (voiceId) { delete sentenceVoices[voiceId]; updateSentenceVoiceButtons(voiceId, false); }
                 if (onEnd) onEnd();
-                if (currentUtterance === u) {
-                    currentUtterance = null;
-                    document.getElementById('globalPauseBtn').disabled = true;
-                }
+                if (currentUtterance === u) { currentUtterance = null; document.getElementById('globalPauseBtn').disabled = true; }
             };
-            u.onerror = () => {
-                if (voiceId) {
-                    delete sentenceVoices[voiceId];
-                    updateSentenceVoiceButtons(voiceId, false);
-                }
-            };
-            if (voiceId) {
-                sentenceVoices[voiceId] = { utterance: u, paused: false };
-                updateSentenceVoiceButtons(voiceId, true);
-            } else {
-                currentUtterance = u;
-                isPaused = false;
-                document.getElementById('globalPauseBtn').textContent = '⏸️ 暂停';
-                document.getElementById('globalPauseBtn').disabled = false;
-            }
+            u.onerror = () => { if (voiceId) { delete sentenceVoices[voiceId]; updateSentenceVoiceButtons(voiceId, false); } };
+            if (voiceId) { sentenceVoices[voiceId] = { utterance: u, paused: false }; updateSentenceVoiceButtons(voiceId, true); }
+            else { currentUtterance = u; isPaused = false; document.getElementById('globalPauseBtn').textContent = '⏸️ 暂停'; document.getElementById('globalPauseBtn').disabled = false; }
             window.speechSynthesis.speak(u);
         }
-
         function toggleGlobalPause() {
             if (!currentUtterance) return;
-            if (isPaused) {
-                window.speechSynthesis.resume();
-                isPaused = false;
-                document.getElementById('globalPauseBtn').textContent = '⏸️ 暂停';
-            } else {
-                window.speechSynthesis.pause();
-                isPaused = true;
-                document.getElementById('globalPauseBtn').textContent = '▶️ 继续';
-            }
+            if (isPaused) { window.speechSynthesis.resume(); isPaused = false; document.getElementById('globalPauseBtn').textContent = '⏸️ 暂停'; }
+            else { window.speechSynthesis.pause(); isPaused = true; document.getElementById('globalPauseBtn').textContent = '▶️ 继续'; }
         }
-
         function playSentence(idx, loop = false) {
             if (!requireActivation()) return;
-            const orig = originalSentences[idx];
-            if (!orig) return;
-            if (sentenceVoices[idx] && sentenceVoices[idx].paused) {
-                window.speechSynthesis.resume();
-                sentenceVoices[idx].paused = false;
-                updateSentenceVoiceButtons(idx, true);
-                return;
-            }
+            const orig = originalSentences[idx]; if (!orig) return;
+            if (sentenceVoices[idx] && sentenceVoices[idx].paused) { window.speechSynthesis.resume(); sentenceVoices[idx].paused = false; updateSentenceVoiceButtons(idx, true); return; }
             if (sentenceVoices[idx] && !sentenceVoices[idx].paused) return;
-            const playFunc = () => {
-                speak(removeAccents(orig), () => {
-                    if (loop && loopSentenceIdx === idx) playSentence(idx, true);
-                }, idx);
-            };
+            const playFunc = () => { speak(removeAccents(orig), () => { if (loop && loopSentenceIdx === idx) playSentence(idx, true); }, idx); };
             playFunc();
         }
-
-        function pauseSentence(idx) {
-            if (!sentenceVoices[idx]) return;
-            window.speechSynthesis.pause();
-            sentenceVoices[idx].paused = true;
-        }
-
-        function stopSentence(idx) {
-            if (sentenceVoices[idx]) {
-                sentenceVoices[idx].utterance.onend = null;
-                window.speechSynthesis.cancel();
-                delete sentenceVoices[idx];
-                updateSentenceVoiceButtons(idx, false);
-            }
-        }
-
+        function pauseSentence(idx) { if (!sentenceVoices[idx]) return; window.speechSynthesis.pause(); sentenceVoices[idx].paused = true; }
+        function stopSentence(idx) { if (sentenceVoices[idx]) { sentenceVoices[idx].utterance.onend = null; window.speechSynthesis.cancel(); delete sentenceVoices[idx]; updateSentenceVoiceButtons(idx, false); } }
         function updateSentenceVoiceButtons(idx, isPlaying) {
-            const pauseBtn = document.getElementById('pauseBtn'+idx);
-            const stopBtn = document.getElementById('stopBtn'+idx);
-            if (pauseBtn) pauseBtn.disabled = !isPlaying;
-            if (stopBtn) stopBtn.disabled = !isPlaying;
+            const pauseBtn = document.getElementById('pauseBtn'+idx); const stopBtn = document.getElementById('stopBtn'+idx);
+            if (pauseBtn) pauseBtn.disabled = !isPlaying; if (stopBtn) stopBtn.disabled = !isPlaying;
         }
-
         function toggleLoop(idx) {
-            if (loopSentenceIdx === idx) {
-                loopSentenceIdx = -1;
-                document.querySelectorAll('.loop-btn').forEach(b => b.classList.remove('loop-active'));
-            } else {
-                loopSentenceIdx = idx;
-                document.querySelectorAll('.loop-btn').forEach(b => b.classList.remove('loop-active'));
-                const btn = document.getElementById('loopBtn'+idx);
-                if (btn) btn.classList.add('loop-active');
-            }
+            if (loopSentenceIdx === idx) { loopSentenceIdx = -1; document.querySelectorAll('.loop-btn').forEach(b => b.classList.remove('loop-active')); }
+            else { loopSentenceIdx = idx; document.querySelectorAll('.loop-btn').forEach(b => b.classList.remove('loop-active')); const btn = document.getElementById('loopBtn'+idx); if (btn) btn.classList.add('loop-active'); }
         }
 
         // ========== 发音对比 ==========
         function wordDiff(ref, hyp) {
-            const rw = cleanText(ref).split(/\s+/).filter(w=>w);
-            const hw = cleanText(hyp).split(/\s+/).filter(w=>w);
+            const rw = cleanText(ref).split(/\s+/).filter(w=>w); const hw = cleanText(hyp).split(/\s+/).filter(w=>w);
             const dp = Array(rw.length+1).fill().map(()=>Array(hw.length+1).fill(0));
-            for(let i=0;i<=rw.length;i++) dp[i][0]=i;
-            for(let j=0;j<=hw.length;j++) dp[0][j]=j;
-            for(let i=1;i<=rw.length;i++) for(let j=1;j<=hw.length;j++){
-                dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+(rw[i-1]===hw[j-1]?0:1));
-            }
+            for(let i=0;i<=rw.length;i++) dp[i][0]=i; for(let j=0;j<=hw.length;j++) dp[0][j]=j;
+            for(let i=1;i<=rw.length;i++) for(let j=1;j<=hw.length;j++) dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+(rw[i-1]===hw[j-1]?0:1));
             let i=rw.length,j=hw.length; const diff=[];
             while(i>0||j>0){
                 if(i>0&&j>0&&rw[i-1]===hw[j-1]){ diff.unshift({type:'correct',ref:rw[i-1],hyp:hw[j-1]}); i--;j--; }
@@ -986,19 +942,8 @@
             }
             return diff;
         }
-        function renderDiff(diff) {
-            return diff.map(d=>{
-                if(d.type==='correct') return `<span class="diff-correct">${d.ref}</span>`;
-                if(d.type==='wrong') return `<span class="diff-wrong">${d.ref}</span>→<span>${d.hyp}</span>`;
-                if(d.type==='missing') return `<span class="diff-missing">[漏读:${d.ref}]</span>`;
-                return `<span class="diff-extra">[多读:${d.hyp}]</span>`;
-            }).join(' ');
-        }
-        function wordAccuracyFromDiff(diff) {
-            const corr = diff.filter(d=>d.type==='correct').length;
-            const total = diff.filter(d=>d.type!=='extra').length;
-            return total?Math.round((corr/total)*100):100;
-        }
+        function renderDiff(diff) { return diff.map(d=>{ if(d.type==='correct') return `<span class="diff-correct">${d.ref}</span>`; if(d.type==='wrong') return `<span class="diff-wrong">${d.ref}</span>→<span>${d.hyp}</span>`; if(d.type==='missing') return `<span class="diff-missing">[漏读:${d.ref}]</span>`; return `<span class="diff-extra">[多读:${d.hyp}]</span>`; }).join(' '); }
+        function wordAccuracyFromDiff(diff) { const corr = diff.filter(d=>d.type==='correct').length; const total = diff.filter(d=>d.type!=='extra').length; return total?Math.round((corr/total)*100):100; }
         function formatTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
 
         // ========== 数字转换 ==========
@@ -1006,121 +951,29 @@
         const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
         const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
         const hundreds = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
-        const millions = ['миллион','миллиона','миллионов'];
-        const billions = ['миллиард','миллиарда','миллиардов'];
-
-        function pluralForm(n, forms) {
-            const lastDigit = n % 10;
-            const lastTwo = n % 100;
-            if (lastTwo >= 11 && lastTwo <= 19) return forms[2];
-            if (lastDigit === 1) return forms[0];
-            if (lastDigit >= 2 && lastDigit <= 4) return forms[1];
-            return forms[2];
-        }
-
+        const millions = ['миллион','миллиона','миллионов']; const billions = ['миллиард','миллиарда','миллиардов'];
+        function pluralForm(n, forms) { const lastDigit = n % 10; const lastTwo = n % 100; if (lastTwo >= 11 && lastTwo <= 19) return forms[2]; if (lastDigit === 1) return forms[0]; if (lastDigit >= 2 && lastDigit <= 4) return forms[1]; return forms[2]; }
         function numToWordsInteger(n) {
-            if (n === 0) return 'ноль';
-            if (n < 10) return ones[n];
-            if (n < 20) return teens[n-10];
+            if (n === 0) return 'ноль'; if (n < 10) return ones[n]; if (n < 20) return teens[n-10];
             if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? ' ' + ones[n%10] : '');
             if (n < 1000) return hundreds[Math.floor(n/100)] + (n%100 ? ' ' + numToWordsInteger(n%100) : '');
-            if (n < 1000000) {
-                const t = Math.floor(n/1000);
-                const rest = n%1000;
-                let tWord = '';
-                if (t === 1) tWord = 'одна тысяча';
-                else if (t === 2) tWord = 'две тысячи';
-                else if (t < 5) tWord = numToWordsInteger(t).replace('один','одна').replace('два','две') + ' тысячи';
-                else tWord = numToWordsInteger(t) + ' тысяч';
-                return tWord + (rest ? ' ' + numToWordsInteger(rest) : '');
-            }
-            if (n < 1000000000) {
-                const m = Math.floor(n/1000000);
-                const rest = n%1000000;
-                let mWord = numToWordsInteger(m) + ' ' + pluralForm(m, millions);
-                return mWord + (rest ? ' ' + numToWordsInteger(rest) : '');
-            }
-            const b = Math.floor(n/1000000000);
-            const rest = n%1000000000;
-            let bWord = numToWordsInteger(b) + ' ' + pluralForm(b, billions);
-            return bWord + (rest ? ' ' + numToWordsInteger(rest) : '');
+            if (n < 1000000) { const t = Math.floor(n/1000); const rest = n%1000; let tWord = ''; if (t === 1) tWord = 'одна тысяча'; else if (t === 2) tWord = 'две тысячи'; else if (t < 5) tWord = numToWordsInteger(t).replace('один','одна').replace('два','две') + ' тысячи'; else tWord = numToWordsInteger(t) + ' тысяч'; return tWord + (rest ? ' ' + numToWordsInteger(rest) : ''); }
+            if (n < 1000000000) { const m = Math.floor(n/1000000); const rest = n%1000000; let mWord = numToWordsInteger(m) + ' ' + pluralForm(m, millions); return mWord + (rest ? ' ' + numToWordsInteger(rest) : ''); }
+            const b = Math.floor(n/1000000000); const rest = n%1000000000; let bWord = numToWordsInteger(b) + ' ' + pluralForm(b, billions); return bWord + (rest ? ' ' + numToWordsInteger(rest) : '');
         }
-
         function convertNumber() {
-            const input = document.getElementById('numberInput').value.trim();
-            if (!input) return;
-            if (input.endsWith('%')) {
-                const numPart = input.slice(0, -1).replace(',', '.');
-                const num = parseFloat(numPart);
-                if (isNaN(num)) {
-                    document.getElementById('numberResult').style.display = 'block';
-                    document.getElementById('numberResult').innerHTML = '⚠️ 无效的百分数';
-                    return;
-                }
-                const words = numToWordsInteger(Math.round(num));
-                document.getElementById('numberResult').style.display = 'block';
-                document.getElementById('numberResult').innerHTML = `🔤 百分数读法：<strong>${words} процент${num === 1 ? '' : num < 5 ? 'а' : 'ов'}</strong>`;
-                return;
-            }
+            const input = document.getElementById('numberInput').value.trim(); if (!input) return;
+            if (input.endsWith('%')) { const numPart = input.slice(0, -1).replace(',', '.'); const num = parseFloat(numPart); if (isNaN(num)) { document.getElementById('numberResult').style.display='block'; document.getElementById('numberResult').innerHTML='⚠️ 无效的百分数'; return; } const words = numToWordsInteger(Math.round(num)); document.getElementById('numberResult').style.display='block'; document.getElementById('numberResult').innerHTML=`🔤 百分数读法：<strong>${words} процент${num === 1 ? '' : num < 5 ? 'а' : 'ов'}</strong>`; return; }
             let cleanInput = input.replace(',', '.');
-            if (cleanInput.includes('.')) {
-                const parts = cleanInput.split('.');
-                if (parts.length !== 2 || parts[0] === '' || parts[1] === '') {
-                    document.getElementById('numberResult').style.display = 'block';
-                    document.getElementById('numberResult').innerHTML = '⚠️ 小数格式不正确';
-                    return;
-                }
-                const intPart = parseInt(parts[0], 10);
-                const fracPart = parts[1].replace(/^0+/, '') || '0';
-                if (isNaN(intPart) || isNaN(parseInt(fracPart, 10))) {
-                    document.getElementById('numberResult').style.display = 'block';
-                    document.getElementById('numberResult').innerHTML = '⚠️ 无效的数字';
-                    return;
-                }
-                const intWords = intPart === 0 ? 'ноль' : numToWordsInteger(intPart);
-                let fracWords = (fracPart === '0') ? 'ноль' : numToWordsInteger(parseInt(fracPart, 10));
-                const fracDigits = parts[1].length;
-                let unit = '';
-                if (fracDigits === 1) unit = 'десятых';
-                else if (fracDigits === 2) unit = 'сотых';
-                else if (fracDigits === 3) unit = 'тысячных';
-                else unit = 'десятитысячных';
-                document.getElementById('numberResult').style.display = 'block';
-                document.getElementById('numberResult').innerHTML = `🔤 小数读法：<strong>${intWords} целых ${fracWords} ${unit}</strong>`;
-                return;
-            }
-            const num = parseInt(cleanInput, 10);
-            if (isNaN(num) || num < 0 || num > 999999999) {
-                document.getElementById('numberResult').style.display = 'block';
-                document.getElementById('numberResult').innerHTML = '⚠️ 请输入0-999999999之间的整数';
-                return;
-            }
-            const words = numToWordsInteger(num);
-            let yearHint = '';
-            if (input.length === 4 && num >= 1000) {
-                yearHint = `<br>📅 年份读法：<strong>${words} год</strong>`;
-            }
-            document.getElementById('numberResult').style.display = 'block';
-            document.getElementById('numberResult').innerHTML = `🔤 数字读法：<strong>${words}</strong>${yearHint}`;
+            if (cleanInput.includes('.')) { const parts = cleanInput.split('.'); if (parts.length !== 2 || parts[0] === '' || parts[1] === '') { document.getElementById('numberResult').style.display='block'; document.getElementById('numberResult').innerHTML='⚠️ 小数格式不正确'; return; } const intPart = parseInt(parts[0], 10); const fracPart = parts[1].replace(/^0+/, '') || '0'; if (isNaN(intPart) || isNaN(parseInt(fracPart, 10))) { document.getElementById('numberResult').style.display='block'; document.getElementById('numberResult').innerHTML='⚠️ 无效的数字'; return; } const intWords = intPart === 0 ? 'ноль' : numToWordsInteger(intPart); let fracWords = (fracPart === '0') ? 'ноль' : numToWordsInteger(parseInt(fracPart, 10)); const fracDigits = parts[1].length; let unit = ''; if (fracDigits === 1) unit = 'десятых'; else if (fracDigits === 2) unit = 'сотых'; else if (fracDigits === 3) unit = 'тысячных'; else unit = 'десятитысячных'; document.getElementById('numberResult').style.display='block'; document.getElementById('numberResult').innerHTML=`🔤 小数读法：<strong>${intWords} целых ${fracWords} ${unit}</strong>`; return; }
+            const num = parseInt(cleanInput, 10); if (isNaN(num) || num < 0 || num > 999999999) { document.getElementById('numberResult').style.display='block'; document.getElementById('numberResult').innerHTML='⚠️ 请输入0-999999999之间的整数'; return; }
+            const words = numToWordsInteger(num); let yearHint = ''; if (input.length === 4 && num >= 1000) yearHint = `<br>📅 年份读法：<strong>${words} год</strong>`; document.getElementById('numberResult').style.display='block'; document.getElementById('numberResult').innerHTML=`🔤 数字读法：<strong>${words}</strong>${yearHint}`;
         }
 
         // ========== 练习模式 ==========
-        let currentTimeLimit = 7*60;
-        let isTimeLimited = true;
-        function handleModeChange() {
-            const mode = document.getElementById('practiceMode').value;
-            document.getElementById('customTimeWrapper').style.display = mode==='free_custom' ? 'inline' : 'none';
-        }
-        function updateTimeLimitFromMode() {
-            const mode = document.getElementById('practiceMode').value;
-            if (mode==='bachelor') { currentTimeLimit=7*60; isTimeLimited=true; }
-            else if (mode==='master') { currentTimeLimit=10*60; isTimeLimited=true; }
-            else if (mode==='free_unlimited') { currentTimeLimit=Infinity; isTimeLimited=false; }
-            else if (mode==='free_custom') {
-                const mins = parseInt(document.getElementById('customMinutes').value)||5;
-                currentTimeLimit = mins*60; isTimeLimited=true;
-            }
-        }
+        let currentTimeLimit = 7*60; let isTimeLimited = true;
+        function handleModeChange() { const mode = document.getElementById('practiceMode').value; document.getElementById('customTimeWrapper').style.display = mode==='free_custom' ? 'inline' : 'none'; }
+        function updateTimeLimitFromMode() { const mode = document.getElementById('practiceMode').value; if (mode==='bachelor') { currentTimeLimit=7*60; isTimeLimited=true; } else if (mode==='master') { currentTimeLimit=10*60; isTimeLimited=true; } else if (mode==='free_unlimited') { currentTimeLimit=Infinity; isTimeLimited=false; } else if (mode==='free_custom') { const mins = parseInt(document.getElementById('customMinutes').value)||5; currentTimeLimit = mins*60; isTimeLimited=true; } }
 
         // ========== 全局状态 ==========
         let originalSentences=[], accentedSentences=[], fullOriginalText='', sentenceScores={};
@@ -1128,202 +981,75 @@
         let sentenceRecognitions = {};
 
         function processText() {
-            const text = document.getElementById('textInput').value.trim();
-            if(!text) return alert('Пожалуйста, введите текст.');
-            updateTimeLimitFromMode();
-            fullOriginalText = text;
-            originalSentences = splitSentences(text);
-            const stressedFullText = stressText(text);
-            accentedSentences = splitSentences(stressedFullText);
-            sentenceScores = {};
+            const text = document.getElementById('textInput').value.trim(); if(!text) return alert('Пожалуйста, введите текст.');
+            updateTimeLimitFromMode(); fullOriginalText = text; originalSentences = splitSentences(text);
+            const stressedFullText = stressText(text); accentedSentences = splitSentences(stressedFullText); sentenceScores = {};
             document.getElementById('fullAccentedText').innerHTML = makeWordsClickable(stressedFullText);
-            renderSentenceList();
-            document.getElementById('inputArea').style.display='none';
-            document.getElementById('practiceArea').style.display='block';
-            document.getElementById('fullTestResult').innerHTML='';
-            let desc = '';
-            const mode = document.getElementById('practiceMode').value;
-            if (mode==='bachelor') desc='本科答辩，时间限制 7 分钟';
-            else if (mode==='master') desc='研究生答辩，时间限制 10 分钟';
-            else if (mode==='free_unlimited') desc='自由练习，不限时间';
-            else desc=`自由练习，时间限制 ${Math.floor(currentTimeLimit/60)} 分钟`;
-            document.getElementById('modeDescription').textContent = `当前模式：${desc}`;
-            loopSentenceIdx = -1;
-            sentenceRecognitions = {};
-            sentenceVoices = {};
+            renderSentenceList(); document.getElementById('inputArea').style.display='none'; document.getElementById('practiceArea').style.display='block'; document.getElementById('fullTestResult').innerHTML='';
+            let desc = ''; const mode = document.getElementById('practiceMode').value;
+            if (mode==='bachelor') desc='本科答辩，时间限制 7 分钟'; else if (mode==='master') desc='研究生答辩，时间限制 10 分钟'; else if (mode==='free_unlimited') desc='自由练习，不限时间'; else desc=`自由练习，时间限制 ${Math.floor(currentTimeLimit/60)} 分钟`;
+            document.getElementById('modeDescription').textContent = `当前模式：${desc}`; loopSentenceIdx = -1; sentenceRecognitions = {}; sentenceVoices = {};
         }
 
         function renderSentenceList() {
-            const container = document.getElementById('sentencesList');
-            container.innerHTML = '';
+            const container = document.getElementById('sentencesList'); container.innerHTML = '';
             originalSentences.forEach((orig,idx)=>{
                 const accented = accentedSentences[idx]||orig;
                 const div = document.createElement('div'); div.className='sentence-item';
-                div.innerHTML = `
-                <div class="sentence-row">
-                    <div class="sentence-text">
-                        <strong>${idx+1}. ${makeWordsClickable(accented)}</strong>
-                        <br><small style="color:gray;">${orig}</small>
-                    </div>
-                    <div class="progress">
-                        <button class="play-btn" onclick="playSentence(${idx}, loopSentenceIdx===${idx})">▶️</button>
-                        <button class="pause-btn" id="pauseBtn${idx}" onclick="pauseSentence(${idx})" disabled>⏸️</button>
-                        <button class="stop-btn" id="stopBtn${idx}" onclick="stopSentence(${idx})" disabled>⏹️</button>
-                        <button class="loop-btn" id="loopBtn${idx}" onclick="toggleLoop(${idx}); playSentence(${idx}, true)">🔁</button>
-                        <button id="recordBtn${idx}" onclick="toggleSentenceRecording(${idx})">🎤 开始</button>
-                        <span id="score${idx}" style="font-weight:bold;">${sentenceScores[idx]!==undefined?sentenceScores[idx]+'%':'-'}</span>
-                    </div>
-                </div>
-                <div id="diff${idx}" style="font-size:0.9em;margin-top:4px;"></div>`;
+                div.innerHTML = `<div class="sentence-row"><div class="sentence-text"><strong>${idx+1}. ${makeWordsClickable(accented)}</strong><br><small style="color:gray;">${orig}</small></div><div class="progress"><button class="play-btn" onclick="playSentence(${idx}, loopSentenceIdx===${idx})">▶️</button><button class="pause-btn" id="pauseBtn${idx}" onclick="pauseSentence(${idx})" disabled>⏸️</button><button class="stop-btn" id="stopBtn${idx}" onclick="stopSentence(${idx})" disabled>⏹️</button><button class="loop-btn" id="loopBtn${idx}" onclick="toggleLoop(${idx}); playSentence(${idx}, true)">🔁</button><button id="recordBtn${idx}" onclick="toggleSentenceRecording(${idx})">🎤 开始</button><span id="score${idx}" style="font-weight:bold;">${sentenceScores[idx]!==undefined?sentenceScores[idx]+'%':'-'}</span></div></div><div id="diff${idx}" style="font-size:0.9em;margin-top:4px;"></div>`;
                 container.appendChild(div);
             });
         }
 
-        function toggleSentenceRecording(idx) {
-            if (!requireActivation()) return;
-            if (sentenceRecognitions[idx] && !sentenceRecognitions[idx].stopped) {
-                stopSentenceRecording(idx);
-            } else {
-                startSentenceRecording(idx);
-            }
-        }
-
+        function toggleSentenceRecording(idx) { if (!requireActivation()) return; if (sentenceRecognitions[idx] && !sentenceRecognitions[idx].stopped) stopSentenceRecording(idx); else startSentenceRecording(idx); }
         function startSentenceRecording(idx) {
-            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SR) {
-                alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。');
-                return;
-            }
-            for (let key in sentenceRecognitions) {
-                if (key != idx && sentenceRecognitions[key] && !sentenceRecognitions[key].stopped) {
-                    stopSentenceRecording(parseInt(key));
-                }
-            }
-            const rec = new SR();
-            rec.lang = 'ru-RU';
-            rec.continuous = true;
-            rec.interimResults = false;
-            rec.maxAlternatives = 1;
-
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。'); return; }
+            for (let key in sentenceRecognitions) { if (key != idx && sentenceRecognitions[key] && !sentenceRecognitions[key].stopped) stopSentenceRecording(parseInt(key)); }
+            const rec = new SR(); rec.lang = 'ru-RU'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
             sentenceRecognitions[idx] = { recognition: rec, results: [], stopped: false };
-
-            rec.onresult = (e) => {
-                if (e.results && e.results.length > 0) {
-                    const last = e.results[e.results.length - 1];
-                    if (last.isFinal) sentenceRecognitions[idx].results.push(last[0].transcript);
-                }
-            };
-            rec.onerror = (e) => {
-                if (e.error === 'not-allowed') alert('麦克风权限未开启，请在浏览器设置中允许使用麦克风。');
-                else if (e.error !== 'aborted') alert('识别出错: ' + e.error);
-            };
-            rec.onend = () => {
-                if (sentenceRecognitions[idx] && !sentenceRecognitions[idx].stopped) {
-                    try { rec.start(); } catch (ex) {}
-                }
-            };
-            rec.start();
-            document.getElementById('recordBtn'+idx).textContent = '⏹️ 结束';
+            rec.onresult = (e) => { if (e.results && e.results.length > 0) { const last = e.results[e.results.length - 1]; if (last.isFinal) sentenceRecognitions[idx].results.push(last[0].transcript); } };
+            rec.onerror = (e) => { if (e.error === 'not-allowed') alert('麦克风权限未开启，请在浏览器设置中允许使用麦克风。'); else if (e.error !== 'aborted') alert('识别出错: ' + e.error); };
+            rec.onend = () => { if (sentenceRecognitions[idx] && !sentenceRecognitions[idx].stopped) { try { rec.start(); } catch (ex) {} } };
+            rec.start(); document.getElementById('recordBtn'+idx).textContent = '⏹️ 结束';
         }
-
         function stopSentenceRecording(idx) {
-            if (!sentenceRecognitions[idx]) return;
-            const item = sentenceRecognitions[idx];
-            item.stopped = true;
-            item.recognition.stop();
-            document.getElementById('recordBtn'+idx).textContent = '🎤 开始';
-            const fullText = item.results.join(' ');
-            const orig = originalSentences[idx];
-            const diff = wordDiff(orig, fullText);
-            const acc = wordAccuracyFromDiff(diff);
-            if (sentenceScores[idx] === undefined || acc > sentenceScores[idx]) sentenceScores[idx] = acc;
-            document.getElementById('score'+idx).innerText = acc + '%';
-            document.getElementById('diff'+idx).innerHTML = '📝 发音对比：' + renderDiff(diff);
-            delete sentenceRecognitions[idx];
+            if (!sentenceRecognitions[idx]) return; const item = sentenceRecognitions[idx]; item.stopped = true; item.recognition.stop();
+            document.getElementById('recordBtn'+idx).textContent = '🎤 开始'; const fullText = item.results.join(' '); const orig = originalSentences[idx];
+            const diff = wordDiff(orig, fullText); const acc = wordAccuracyFromDiff(diff); if (sentenceScores[idx] === undefined || acc > sentenceScores[idx]) sentenceScores[idx] = acc;
+            document.getElementById('score'+idx).innerText = acc + '%'; document.getElementById('diff'+idx).innerHTML = '📝 发音对比：' + renderDiff(diff); delete sentenceRecognitions[idx];
         }
 
-        function speakFullText() {
-            if (!requireActivation()) return;
-            window.speechSynthesis.cancel();
-            loopSentenceIdx = -1;
-            for (let key in sentenceVoices) { if (sentenceVoices[key]) delete sentenceVoices[key]; }
-            speak(removeAccents(fullOriginalText));
-        }
+        function speakFullText() { if (!requireActivation()) return; window.speechSynthesis.cancel(); loopSentenceIdx = -1; for (let key in sentenceVoices) { if (sentenceVoices[key]) delete sentenceVoices[key]; } speak(removeAccents(fullOriginalText)); }
 
         function startFullTest() {
-            if (!requireActivation()) return;
-            if (!fullOriginalText) return;
-            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SR) { alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。'); return; }
-            if (fullRecognition && isFullTestRunning) stopFullTest();
-            fullRecognition = new SR();
-            fullRecognition.lang = 'ru-RU';
-            fullRecognition.continuous = true;
-            fullRecognition.interimResults = true;
-            fullRecognizedText = '';
-            fullRecognition.onresult = (e) => {
-                for (let i = e.resultIndex; i < e.results.length; i++) {
-                    if (e.results[i].isFinal) fullRecognizedText += e.results[i][0].transcript + ' ';
-                }
-            };
-            fullRecognition.onerror = (e) => {
-                if (e.error === 'not-allowed') alert('麦克风权限未开启，请在浏览器设置中允许使用麦克风。');
-                else alert('全篇识别错误: ' + e.error);
-            };
-            fullRecognition.onend = () => { if (isFullTestRunning) try { fullRecognition.start(); } catch (ex) {} };
-            fullRecognition.start();
-            isFullTestRunning = true;
-            fullTestStartTime = Date.now();
-            document.getElementById('startFullTestBtn').disabled = true;
-            document.getElementById('stopFullTestBtn').disabled = false;
-            document.getElementById('fullTestResult').innerHTML = '';
-            fullTestTimerInterval = setInterval(() => {
-                document.getElementById('fullTimer').innerText = formatTime((Date.now() - fullTestStartTime) / 1000);
-            }, 200);
+            if (!requireActivation()) return; if (!fullOriginalText) return;
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。'); return; }
+            if (fullRecognition && isFullTestRunning) stopFullTest(); fullRecognition = new SR(); fullRecognition.lang = 'ru-RU'; fullRecognition.continuous = true; fullRecognition.interimResults = true;
+            fullRecognizedText = ''; fullRecognition.onresult = (e) => { for (let i = e.resultIndex; i < e.results.length; i++) { if (e.results[i].isFinal) fullRecognizedText += e.results[i][0].transcript + ' '; } };
+            fullRecognition.onerror = (e) => { if (e.error === 'not-allowed') alert('麦克风权限未开启，请在浏览器设置中允许使用麦克风。'); else alert('全篇识别错误: ' + e.error); };
+            fullRecognition.onend = () => { if (isFullTestRunning) { try { fullRecognition.start(); } catch (ex) {} } };
+            fullRecognition.start(); isFullTestRunning = true; fullTestStartTime = Date.now();
+            document.getElementById('startFullTestBtn').disabled = true; document.getElementById('stopFullTestBtn').disabled = false; document.getElementById('fullTestResult').innerHTML = '';
+            fullTestTimerInterval = setInterval(() => { document.getElementById('fullTimer').innerText = formatTime((Date.now() - fullTestStartTime) / 1000); }, 200);
         }
 
         function stopFullTest() {
-            if (!isFullTestRunning) return;
-            if (fullRecognition) fullRecognition.stop();
-            isFullTestRunning = false;
-            clearInterval(fullTestTimerInterval);
-            const elapsed = (Date.now() - fullTestStartTime) / 1000;
-            document.getElementById('fullTimer').innerText = formatTime(elapsed);
-            document.getElementById('startFullTestBtn').disabled = false;
-            document.getElementById('stopFullTestBtn').disabled = true;
-            const diff = wordDiff(fullOriginalText, fullRecognizedText);
-            const acc = wordAccuracyFromDiff(diff);
-            const threshold = getAccuracyThreshold();
-            let timeOk = isTimeLimited ? elapsed <= currentTimeLimit : true;
-            const ok = timeOk && acc >= threshold;
-            let msg = '';
-            if (ok) {
-                msg = `✅ 达标！时间：${formatTime(elapsed)}，准确率：${acc}%（标准 ${threshold}%）`;
-                document.getElementById('congratsText').innerHTML = `你的朗读已达标！<br>发音很棒${isTimeLimited ? '，时间也控制得很好' : ''}！`;
-                document.getElementById('congratsModal').style.display = 'flex';
-            } else {
-                let reason = '';
-                if (!timeOk) reason += `超时：${formatTime(elapsed)}（需 ≤ ${formatTime(currentTimeLimit)}） `;
-                if (acc < threshold) reason += `准确率：${acc}%（需 ≥ ${threshold}%）`;
-                msg = `❌ 未达标。${reason}`;
-            }
-            const div = document.getElementById('fullTestResult');
-            div.className = 'result ' + (ok ? 'pass' : 'fail');
-            div.innerHTML = msg + '<br><small>📝 全文对比：' + renderDiff(diff) + '</small>';
+            if (!isFullTestRunning) return; if (fullRecognition) fullRecognition.stop(); isFullTestRunning = false; clearInterval(fullTestTimerInterval);
+            const elapsed = (Date.now() - fullTestStartTime) / 1000; document.getElementById('fullTimer').innerText = formatTime(elapsed);
+            document.getElementById('startFullTestBtn').disabled = false; document.getElementById('stopFullTestBtn').disabled = true;
+            const diff = wordDiff(fullOriginalText, fullRecognizedText); const acc = wordAccuracyFromDiff(diff); const threshold = getAccuracyThreshold();
+            let timeOk = isTimeLimited ? elapsed <= currentTimeLimit : true; const ok = timeOk && acc >= threshold; let msg = '';
+            if (ok) { msg = `✅ 达标！时间：${formatTime(elapsed)}，准确率：${acc}%（标准 ${threshold}%）`; document.getElementById('congratsText').innerHTML = `你的朗读已达标！<br>发音很棒${isTimeLimited ? '，时间也控制得很好' : ''}！`; document.getElementById('congratsModal').style.display = 'flex'; }
+            else { let reason = ''; if (!timeOk) reason += `超时：${formatTime(elapsed)}（需 ≤ ${formatTime(currentTimeLimit)}） `; if (acc < threshold) reason += `准确率：${acc}%（需 ≥ ${threshold}%）`; msg = `❌ 未达标。${reason}`; }
+            const div = document.getElementById('fullTestResult'); div.className = 'result ' + (ok ? 'pass' : 'fail'); div.innerHTML = msg + '<br><small>📝 全文对比：' + renderDiff(diff) + '</small>';
         }
 
         function closeCongrats() { document.getElementById('congratsModal').style.display = 'none'; }
         function openHelp() { document.getElementById('helpModal').style.display = 'flex'; }
         function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
-        document.addEventListener('click', function(e) {
-            if (e.target.id === 'helpModal') closeHelp();
-            if (e.target.id === 'congratsModal') closeCongrats();
-        });
+        document.addEventListener('click', function(e) { if (e.target.id === 'helpModal') closeHelp(); if (e.target.id === 'congratsModal') closeCongrats(); });
 
-        window.addEventListener('DOMContentLoaded', () => {
-            startCountdown();
-            handleModeChange();
-        });
+        window.addEventListener('DOMContentLoaded', () => { startCountdown(); handleModeChange(); });
     </script>
 </body>
 </html>
