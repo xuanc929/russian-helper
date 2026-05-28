@@ -1,5 +1,3 @@
-[俄语答辩.html](https://github.com/user-attachments/files/28354772/default.html)
-<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
