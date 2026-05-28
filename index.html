@@ -297,10 +297,10 @@
 
     <!-- 数字/年份转换器卡片 -->
     <div class="card" id="numberConverterCard">
-        <h2>🔢 数字/年份转换器</h2>
-        <p style="color:#555;">输入数字（如 2023、250），自动转换成俄语单词（附带年份读法建议）。</p>
+        <h2>🔢 数字/年份/百分数转换器</h2>
+        <p style="color:#555;">支持整数、小数（用点或逗号）、百分号（%）。例如：2023、3.14、25%、1500、0.5</p>
         <div style="display:flex; gap:8px; align-items:center;">
-            <input type="number" id="numberInput" placeholder="输入数字" style="flex:1; padding:10px; border-radius:10px; border:2px solid #e0e4f0; font-size:16px;">
+            <input type="text" id="numberInput" placeholder="输入数字" style="flex:1; padding:10px; border-radius:10px; border:2px solid #e0e4f0; font-size:16px;">
             <button onclick="convertNumber()">转换</button>
         </div>
         <div class="number-result" id="numberResult" style="display:none;"></div>
@@ -531,7 +531,6 @@
             document.getElementById('practiceArea').style.display = 'none';
             document.getElementById('inputArea').style.display = 'block';
             document.getElementById('textInput').value = fullOriginalText;
-            // 停止可能正在播放的语音
             window.speechSynthesis.cancel();
             if (fullRecognition && isFullTestRunning) stopFullTest();
             loopSentenceIdx = -1;
@@ -699,41 +698,119 @@
         }
         function formatTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
 
-        // ========== 数字转俄语单词 ==========
+        // ========== 增强版数字转俄语 ==========
+        // 个位数、十几、几十、几百、几千、百万、十亿
         const ones = ['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
         const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
         const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
         const hundreds = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
         const thousands = ['тысяча','тысячи','тысяч'];
-        function numToWords(n) {
+        const millions = ['миллион','миллиона','миллионов'];
+        const billions = ['миллиард','миллиарда','миллиардов'];
+
+        function pluralForm(n, forms) {
+            const lastDigit = n % 10;
+            const lastTwo = n % 100;
+            if (lastTwo >= 11 && lastTwo <= 19) return forms[2];
+            if (lastDigit === 1) return forms[0];
+            if (lastDigit >= 2 && lastDigit <= 4) return forms[1];
+            return forms[2];
+        }
+
+        function numToWordsInteger(n) {
             if (n === 0) return 'ноль';
             if (n < 10) return ones[n];
             if (n < 20) return teens[n-10];
             if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? ' ' + ones[n%10] : '');
-            if (n < 1000) return hundreds[Math.floor(n/100)] + (n%100 ? ' ' + numToWords(n%100) : '');
-            // тысячи
-            const t = Math.floor(n/1000);
-            const rest = n%1000;
-            let tWord = '';
-            if (t === 1) tWord = 'одна тысяча';
-            else if (t === 2) tWord = 'две тысячи';
-            else if (t < 5) tWord = numToWords(t).replace('один','одна').replace('два','две') + ' тысячи';
-            else tWord = numToWords(t) + ' тысяч';
-            return tWord + (rest ? ' ' + numToWords(rest) : '');
+            if (n < 1000) return hundreds[Math.floor(n/100)] + (n%100 ? ' ' + numToWordsInteger(n%100) : '');
+            if (n < 1000000) {
+                const t = Math.floor(n/1000);
+                const rest = n%1000;
+                let tWord = '';
+                if (t === 1) tWord = 'одна тысяча';
+                else if (t === 2) tWord = 'две тысячи';
+                else if (t < 5) tWord = numToWordsInteger(t).replace('один','одна').replace('два','две') + ' тысячи';
+                else tWord = numToWordsInteger(t) + ' тысяч';
+                return tWord + (rest ? ' ' + numToWordsInteger(rest) : '');
+            }
+            if (n < 1000000000) {
+                const m = Math.floor(n/1000000);
+                const rest = n%1000000;
+                let mWord = numToWordsInteger(m) + ' ' + pluralForm(m, millions);
+                return mWord + (rest ? ' ' + numToWordsInteger(rest) : '');
+            }
+            // миллиарды
+            const b = Math.floor(n/1000000000);
+            const rest = n%1000000000;
+            let bWord = numToWordsInteger(b) + ' ' + pluralForm(b, billions);
+            return bWord + (rest ? ' ' + numToWordsInteger(rest) : '');
         }
+
         function convertNumber() {
             const input = document.getElementById('numberInput').value.trim();
             if (!input) return;
-            const num = parseInt(input, 10);
-            if (isNaN(num) || num < 0 || num > 999999) {
+
+            // 处理百分号
+            if (input.endsWith('%')) {
+                const numPart = input.slice(0, -1).replace(',', '.');
+                const num = parseFloat(numPart);
+                if (isNaN(num)) {
+                    document.getElementById('numberResult').style.display = 'block';
+                    document.getElementById('numberResult').innerHTML = '⚠️ 无效的百分数';
+                    return;
+                }
+                const words = numToWordsInteger(Math.round(num)); // 百分数通常读整数部分
                 document.getElementById('numberResult').style.display = 'block';
-                document.getElementById('numberResult').innerHTML = '⚠️ 请输入0-999999之间的数字';
+                document.getElementById('numberResult').innerHTML = `🔤 百分数读法：<strong>${words} процент${num === 1 ? '' : num < 5 ? 'а' : 'ов'}</strong>`;
                 return;
             }
-            const words = numToWords(num);
+
+            // 处理小数（点或逗号）
+            let cleanInput = input.replace(',', '.');
+            if (cleanInput.includes('.')) {
+                const parts = cleanInput.split('.');
+                if (parts.length !== 2 || parts[0] === '' || parts[1] === '') {
+                    document.getElementById('numberResult').style.display = 'block';
+                    document.getElementById('numberResult').innerHTML = '⚠️ 小数格式不正确';
+                    return;
+                }
+                const intPart = parseInt(parts[0], 10);
+                const fracPart = parts[1].replace(/^0+/, '') || '0'; // 去掉前导零，但如果全是零则保留一个零
+                if (isNaN(intPart) || isNaN(parseInt(fracPart, 10))) {
+                    document.getElementById('numberResult').style.display = 'block';
+                    document.getElementById('numberResult').innerHTML = '⚠️ 无效的数字';
+                    return;
+                }
+                const intWords = intPart === 0 ? 'ноль' : numToWordsInteger(intPart);
+                let fracWords = '';
+                if (fracPart === '0') {
+                    fracWords = 'ноль';
+                } else {
+                    fracWords = numToWordsInteger(parseInt(fracPart, 10));
+                }
+                // 根据小数位数确定单位：十分之一、百分之一等
+                const fracDigits = parts[1].length;
+                let unit = '';
+                if (fracDigits === 1) unit = 'десятых';
+                else if (fracDigits === 2) unit = 'сотых';
+                else if (fracDigits === 3) unit = 'тысячных';
+                else unit = 'десятитысячных'; // 简化
+                document.getElementById('numberResult').style.display = 'block';
+                document.getElementById('numberResult').innerHTML = `🔤 小数读法：<strong>${intWords} целых ${fracWords} ${unit}</strong>`;
+                return;
+            }
+
+            // 整数
+            const num = parseInt(cleanInput, 10);
+            if (isNaN(num) || num < 0 || num > 999999999) {
+                document.getElementById('numberResult').style.display = 'block';
+                document.getElementById('numberResult').innerHTML = '⚠️ 请输入0-999999999之间的整数';
+                return;
+            }
+            const words = numToWordsInteger(num);
             let yearHint = '';
             if (input.length === 4 && num >= 1000) {
-                yearHint = `<br>📅 年份读法：<strong>${words} год</strong> (或 две тысячи ... год)`;
+                yearHint = `<br>📅 年份读法：<strong>${words} год</strong>`;
             }
             document.getElementById('numberResult').style.display = 'block';
             document.getElementById('numberResult').innerHTML = `🔤 数字读法：<strong>${words}</strong>${yearHint}`;
@@ -774,7 +851,6 @@
             document.getElementById('inputArea').style.display='none';
             document.getElementById('practiceArea').style.display='block';
             document.getElementById('fullTestResult').innerHTML='';
-            // 更新模式描述
             let desc = '';
             const mode = document.getElementById('practiceMode').value;
             if (mode==='bachelor') desc='本科答辩，时间限制 7 分钟';
