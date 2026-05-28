@@ -236,11 +236,12 @@
         }
         .help-tip {
             background: #e8f0fe;
-            border-radius: 10px;
-            padding: 8px 16px;
-            margin-bottom: 16px;
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
             color: #174ea6;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 1.1em;
         }
         .number-result {
             background: #f0f9ff;
@@ -249,6 +250,11 @@
             margin-top: 12px;
             font-size: 1.1em;
             border-left: 4px solid var(--primary);
+        }
+        .level-select {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
     </style>
 </head>
@@ -289,6 +295,15 @@
             <span id="customTimeWrapper" style="display:none;">
                 时间：<input type="number" id="customMinutes" min="1" value="5" step="1"> 分钟
             </span>
+        </div>
+        <div class="level-select">
+            <label>🗣️ 口语标准：</label>
+            <select id="accuracyLevel">
+                <option value="beginner">初学者 (准确率60%即达标)</option>
+                <option value="normal" selected>普通 (75%)</option>
+                <option value="advanced">追求地道 (85%)</option>
+                <option value="native">本地人标准 (90%)</option>
+            </select>
         </div>
         <button onclick="processText()">✨ 分析重音并开始练习</button>
         <button onclick="clearInput()" style="background:#f0f0f0; color:#333; box-shadow:none;">🧹 清空输入框</button>
@@ -347,19 +362,17 @@
         </div>
     </div>
 
-    <!-- 帮助弹窗 -->
+    <!-- 帮助弹窗（更新） -->
     <div id="helpModal" class="modal-overlay" style="display:none;">
-        <div class="modal" style="max-width:480px; text-align:left;">
+        <div class="modal" style="max-width:500px; text-align:left;">
             <h2>📘 使用指南</h2>
             <ol class="help-steps">
-                <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式，点击“分析重音”。</li>
-                <li><strong>查看重音：</strong>系统自动为每个单词标注重音，字母 <strong>ё</strong> 本身已重读，不再添加符号。</li>
-                <li><strong>点击单词：</strong>点击任意俄语单词，可弹出中文翻译。</li>
-                <li><strong>调整语速：</strong>拖动顶部滑块，可减慢或加快朗读示范。</li>
-                <li><strong>分句练习：</strong>🔊 听示范；🔁 循环；🎤 录音打分。</li>
-                <li><strong>全篇模拟：</strong>根据所选模式计时，读完后评分。</li>
-                <li><strong>达标标准：</strong>在限定时间内读完且准确率 ≥ 90%，即视为达标（自由练习不限时只看准确率）。</li>
-                <li><strong>修改稿件：</strong>练习界面底部有“✏️ 修改稿件”按钮，可随时返回修改。</li>
+                <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式与口语标准，点击“分析重音”。</li>
+                <li><strong>查看重音与翻译：</strong>系统自动为每个单词标注重音（ё 不重复标），点击单词可看中文翻译。</li>
+                <li><strong>调整语速与数字转换：</strong>可拖动语速滑块，下方数字转换器帮你读年份/百分数。</li>
+                <li><strong>分句练习：</strong>点击句子右侧 🔊 听示范，🔁 可循环。点击 <strong>开始</strong> 录音，读完后按 <strong>结束</strong> 查看评分（无示范不弹窗）。</li>
+                <li><strong>全篇模拟：</strong>按所选模式计时朗读，结束后评分。口语标准决定达标门槛（60%/75%/85%/90%）。</li>
+                <li><strong>修改稿件：</strong>练习页底部有“✏️ 修改稿件”，可随时返回修改。</li>
                 <li><strong>📌 公用激活码：</strong>输入 <code>11111111</code> 可激活，有效期1小时，每日可激活一次。</li>
             </ol>
             <p style="color:#888;">💡 使用 Chrome 浏览器，允许麦克风权限，效果最佳。</p>
@@ -373,7 +386,7 @@
     <div id="translationPopup" class="translation-popup" style="display:none;"></div>
 
     <script>
-        // ========== 会员激活系统（万能码+防重复） ==========
+        // ========== 会员激活系统 ==========
         const ACTIVATION_KEY = 'rus_accent_activation';
         const USED_CODES_KEY = 'rus_accent_used_codes';
         const FREE_ACTIVATION_DATE_KEY = 'rus_accent_free_date';
@@ -521,6 +534,15 @@
             }
         }
 
+        // ========== 口语标准（准确率阈值） ==========
+        function getAccuracyThreshold() {
+            const level = document.getElementById('accuracyLevel').value;
+            if (level === 'beginner') return 60;
+            if (level === 'normal') return 75;
+            if (level === 'advanced') return 85;
+            return 90; // native
+        }
+
         // ========== 清空输入框 ==========
         function clearInput() {
             document.getElementById('textInput').value = '';
@@ -536,7 +558,7 @@
             loopSentenceIdx = -1;
         }
 
-        // ========== 内置重音词典 + 规则 ==========
+        // ========== 重音词典 ==========
         const stressDict = {
             "здравствуйте":"здра́вствуйте","как":"ка́к","дела":"дела́","спасибо":"спаси́бо",
             "пожалуйста":"пожа́луйста","меня":"меня́","зовут":"зову́т","студент":"студе́нт",
@@ -698,8 +720,7 @@
         }
         function formatTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
 
-        // ========== 增强版数字转俄语 ==========
-        // 个位数、十几、几十、几百、几千、百万、十亿
+        // ========== 数字转换 ==========
         const ones = ['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
         const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
         const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
@@ -739,7 +760,6 @@
                 let mWord = numToWordsInteger(m) + ' ' + pluralForm(m, millions);
                 return mWord + (rest ? ' ' + numToWordsInteger(rest) : '');
             }
-            // миллиарды
             const b = Math.floor(n/1000000000);
             const rest = n%1000000000;
             let bWord = numToWordsInteger(b) + ' ' + pluralForm(b, billions);
@@ -749,8 +769,6 @@
         function convertNumber() {
             const input = document.getElementById('numberInput').value.trim();
             if (!input) return;
-
-            // 处理百分号
             if (input.endsWith('%')) {
                 const numPart = input.slice(0, -1).replace(',', '.');
                 const num = parseFloat(numPart);
@@ -759,13 +777,11 @@
                     document.getElementById('numberResult').innerHTML = '⚠️ 无效的百分数';
                     return;
                 }
-                const words = numToWordsInteger(Math.round(num)); // 百分数通常读整数部分
+                const words = numToWordsInteger(Math.round(num));
                 document.getElementById('numberResult').style.display = 'block';
                 document.getElementById('numberResult').innerHTML = `🔤 百分数读法：<strong>${words} процент${num === 1 ? '' : num < 5 ? 'а' : 'ов'}</strong>`;
                 return;
             }
-
-            // 处理小数（点或逗号）
             let cleanInput = input.replace(',', '.');
             if (cleanInput.includes('.')) {
                 const parts = cleanInput.split('.');
@@ -775,32 +791,24 @@
                     return;
                 }
                 const intPart = parseInt(parts[0], 10);
-                const fracPart = parts[1].replace(/^0+/, '') || '0'; // 去掉前导零，但如果全是零则保留一个零
+                const fracPart = parts[1].replace(/^0+/, '') || '0';
                 if (isNaN(intPart) || isNaN(parseInt(fracPart, 10))) {
                     document.getElementById('numberResult').style.display = 'block';
                     document.getElementById('numberResult').innerHTML = '⚠️ 无效的数字';
                     return;
                 }
                 const intWords = intPart === 0 ? 'ноль' : numToWordsInteger(intPart);
-                let fracWords = '';
-                if (fracPart === '0') {
-                    fracWords = 'ноль';
-                } else {
-                    fracWords = numToWordsInteger(parseInt(fracPart, 10));
-                }
-                // 根据小数位数确定单位：十分之一、百分之一等
+                let fracWords = (fracPart === '0') ? 'ноль' : numToWordsInteger(parseInt(fracPart, 10));
                 const fracDigits = parts[1].length;
                 let unit = '';
                 if (fracDigits === 1) unit = 'десятых';
                 else if (fracDigits === 2) unit = 'сотых';
                 else if (fracDigits === 3) unit = 'тысячных';
-                else unit = 'десятитысячных'; // 简化
+                else unit = 'десятитысячных';
                 document.getElementById('numberResult').style.display = 'block';
                 document.getElementById('numberResult').innerHTML = `🔤 小数读法：<strong>${intWords} целых ${fracWords} ${unit}</strong>`;
                 return;
             }
-
-            // 整数
             const num = parseInt(cleanInput, 10);
             if (isNaN(num) || num < 0 || num > 999999999) {
                 document.getElementById('numberResult').style.display = 'block';
@@ -837,6 +845,8 @@
         // ========== 全局状态 ==========
         let originalSentences=[], accentedSentences=[], fullOriginalText='', sentenceScores={};
         let fullTestStartTime=null, fullTestTimerInterval=null, fullRecognition=null, fullRecognizedText='', isFullTestRunning=false;
+        // 单句录音状态
+        let sentenceRecognitions = {}; // idx -> { recognition, button, startTime }
 
         function processText() {
             const text = document.getElementById('textInput').value.trim();
@@ -859,6 +869,7 @@
             else desc=`自由练习，时间限制 ${Math.floor(currentTimeLimit/60)} 分钟`;
             document.getElementById('modeDescription').textContent = `当前模式：${desc}`;
             loopSentenceIdx = -1;
+            sentenceRecognitions = {};
         }
 
         function renderSentenceList() {
@@ -876,13 +887,72 @@
                     <div class="progress">
                         <button class="play-btn" onclick="playSentence(${idx}, loopSentenceIdx===${idx})">🔊</button>
                         <button class="loop-btn" id="loopBtn${idx}" onclick="toggleLoop(${idx}); playSentence(${idx}, true)">🔁</button>
-                        <button onclick="practiceSentence(${idx})">🎤 练习</button>
+                        <button id="recordBtn${idx}" onclick="toggleSentenceRecording(${idx})">▶️ 开始</button>
                         <span id="score${idx}" style="font-weight:bold;">${sentenceScores[idx]!==undefined?sentenceScores[idx]+'%':'-'}</span>
                     </div>
                 </div>
                 <div id="diff${idx}" style="font-size:0.9em;margin-top:4px;"></div>`;
                 container.appendChild(div);
             });
+        }
+
+        // 切换单句录音（开始/结束）
+        function toggleSentenceRecording(idx) {
+            if (!requireActivation()) return;
+            // 如果已有正在录音的句子，先停止
+            if (sentenceRecognitions[idx]) {
+                // 结束录音
+                stopSentenceRecording(idx);
+            } else {
+                startSentenceRecording(idx);
+            }
+        }
+
+        function startSentenceRecording(idx) {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(!SR) return alert('Нужен Chrome');
+            // 停止其他录音
+            for (let key in sentenceRecognitions) {
+                if (key != idx && sentenceRecognitions[key]) stopSentenceRecording(parseInt(key));
+            }
+            const rec = new SR();
+            rec.lang = 'ru-RU';
+            rec.interimResults = false;
+            rec.maxAlternatives = 1;
+            rec.onresult = (e) => {
+                const trans = e.results[0][0].transcript;
+                const orig = originalSentences[idx];
+                const diff = wordDiff(orig, trans);
+                const acc = wordAccuracyFromDiff(diff);
+                if (sentenceScores[idx] === undefined || acc > sentenceScores[idx]) sentenceScores[idx] = acc;
+                document.getElementById('score'+idx).innerText = acc+'%';
+                document.getElementById('diff'+idx).innerHTML = '📝 发音对比：'+renderDiff(diff);
+                // 清理录音状态
+                delete sentenceRecognitions[idx];
+                document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
+            };
+            rec.onerror = (e) => {
+                alert('识别出错: ' + e.error);
+                delete sentenceRecognitions[idx];
+                document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
+            };
+            rec.onend = () => {
+                // 如果用户没手动停止，自动结束，但需要判断是否还在数组中
+                if (sentenceRecognitions[idx]) {
+                    delete sentenceRecognitions[idx];
+                    document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
+                }
+            };
+            rec.start();
+            sentenceRecognitions[idx] = { recognition: rec };
+            document.getElementById('recordBtn'+idx).textContent = '⏹️ 结束';
+        }
+
+        function stopSentenceRecording(idx) {
+            if (!sentenceRecognitions[idx]) return;
+            sentenceRecognitions[idx].recognition.stop();
+            delete sentenceRecognitions[idx];
+            document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
         }
 
         function speakFullText() {
@@ -892,26 +962,7 @@
             speak(removeAccents(fullOriginalText));
         }
 
-        function practiceSentence(idx) {
-            if (!requireActivation()) return;
-            const orig = originalSentences[idx];
-            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(!SR) return alert('Нужен Chrome');
-            const rec = new SR(); rec.lang='ru-RU'; rec.interimResults=false; rec.maxAlternatives=1;
-            speak(removeAccents(orig));
-            setTimeout(()=>{ alert(`请朗读第 ${idx+1} 句`); rec.start(); }, 1500);
-            rec.onresult = (e)=>{
-                const trans = e.results[0][0].transcript;
-                const diff = wordDiff(orig,trans);
-                const acc = wordAccuracyFromDiff(diff);
-                if(sentenceScores[idx]===undefined||acc>sentenceScores[idx]) sentenceScores[idx]=acc;
-                document.getElementById('score'+idx).innerText = acc+'%';
-                document.getElementById('diff'+idx).innerHTML = '📝 发音对比：'+renderDiff(diff);
-                alert(`识别: "${trans}"\n正确率: ${acc}%`);
-            };
-            rec.onerror = (e)=> alert('Ошибка: '+e.error);
-        }
-
+        // 全篇测试（不变）
         function startFullTest() {
             if (!requireActivation()) return;
             if(!fullOriginalText) return;
@@ -939,17 +990,18 @@
             document.getElementById('stopFullTestBtn').disabled=true;
             const diff = wordDiff(fullOriginalText, fullRecognizedText);
             const acc = wordAccuracyFromDiff(diff);
+            const threshold = getAccuracyThreshold();
             let timeOk = isTimeLimited ? elapsed <= currentTimeLimit : true;
-            const ok = timeOk && acc >= 90;
+            const ok = timeOk && acc >= threshold;
             let msg = '';
             if (ok) {
-                msg = `✅ 达标！时间：${formatTime(elapsed)}，准确率：${acc}%`;
+                msg = `✅ 达标！时间：${formatTime(elapsed)}，准确率：${acc}%（标准 ${threshold}%）`;
                 document.getElementById('congratsText').innerHTML = `你的朗读已达标！<br>发音很棒${isTimeLimited?'，时间也控制得很好':''}！`;
                 document.getElementById('congratsModal').style.display = 'flex';
             } else {
                 let reason = '';
                 if (!timeOk) reason += `超时：${formatTime(elapsed)}（需 ≤ ${formatTime(currentTimeLimit)}） `;
-                if (acc < 90) reason += `准确率：${acc}%（需 ≥ 90%）`;
+                if (acc < threshold) reason += `准确率：${acc}%（需 ≥ ${threshold}%）`;
                 msg = `❌ 未达标。${reason}`;
             }
             const div = document.getElementById('fullTestResult');
