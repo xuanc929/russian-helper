@@ -256,6 +256,15 @@
             align-items: center;
             gap: 8px;
         }
+        .tts-warning {
+            background: #ffdddd;
+            border: 1px solid #ff8888;
+            color: #a80000;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -279,6 +288,11 @@
     <div class="help-float" onclick="openHelp()">📘 使用指南</div>
 
     <h1>🎓 俄语答辩朗读练习 <span style="font-size:0.8em;color:#888;">— твой голос, твоя защита</span></h1>
+
+    <!-- TTS 检测提示 -->
+    <div id="ttsWarning" class="tts-warning" style="display:none;">
+        ⚠️ 检测到您的手机/浏览器不支持俄语语音播报！请下载安装 <strong>Google 文字转语音引擎</strong> 并在系统设置中启用俄语，然后刷新本页面。
+    </div>
 
     <div class="card" id="inputArea">
         <div class="help-tip">💡 首次使用？请先点击右上角「📘 使用指南」阅读详细说明。</div>
@@ -348,7 +362,6 @@
         <button id="stopFullTestBtn" onclick="stopFullTest()" disabled>⏹️ 停止并评分</button>
         <div class="timer" id="fullTimer">00:00</div>
         <div id="fullTestResult"></div>
-        <!-- 修改稿件按钮 -->
         <button onclick="goBackToEdit()" style="background:#f8f9fa; color:#333; margin-top:20px; box-shadow:none;">✏️ 修改稿件</button>
     </div>
 
@@ -375,7 +388,7 @@
                 <li><strong>修改稿件：</strong>练习页底部有“✏️ 修改稿件”，可随时返回修改。</li>
                 <li><strong>📌 公用激活码：</strong>输入 <code>11111111</code> 可激活，有效期1小时，每日可激活一次。</li>
             </ol>
-            <p style="color:#888;">💡 使用 Chrome 浏览器，允许麦克风权限，效果最佳。</p>
+            <p style="color:#888;">💡 使用 Chrome 浏览器，允许麦克风权限，效果最佳。如无声音，请安装 Google TTS 引擎。</p>
             <button onclick="closeHelp()">我知道了</button>
         </div>
     </div>
@@ -386,6 +399,17 @@
     <div id="translationPopup" class="translation-popup" style="display:none;"></div>
 
     <script>
+        // ========== TTS 检测 ==========
+        function checkTTS() {
+            const voices = window.speechSynthesis.getVoices();
+            const hasRussian = voices.some(v => v.lang.startsWith('ru'));
+            if (!hasRussian && voices.length > 0) {
+                document.getElementById('ttsWarning').style.display = 'block';
+            }
+        }
+        window.speechSynthesis.onvoiceschanged = checkTTS;
+        setTimeout(checkTTS, 1000);
+
         // ========== 会员激活系统（含专属码） ==========
         const ACTIVATION_KEY = 'rus_accent_activation';
         const USED_CODES_KEY = 'rus_accent_used_codes';
@@ -393,7 +417,6 @@
         const COUNTAPI_NS = 'russian-helper';
         let membershipTimer = null;
 
-        // 专属码配置
         const SPECIAL_CODES = {
             'xuanzs929': 100,
             '小管555': 10,
@@ -508,7 +531,6 @@
         async function activate() {
             const code = document.getElementById('activationCode').value.trim();
             if (!code) return;
-            // 专属码
             if (SPECIAL_CODES.hasOwnProperty(code)) {
                 const years = SPECIAL_CODES[code];
                 const expire = Date.now() + years * 365 * 24 * 60 * 60 * 1000;
@@ -516,7 +538,6 @@
                 alert(`✅ 专属码激活成功！有效期至 ${new Date(expire).toLocaleDateString()}`);
                 return;
             }
-            // 公用码
             if (code === '11111111') {
                 const result = await tryFreeActivation();
                 if (result.success) {
@@ -526,7 +547,6 @@
                 }
                 return;
             }
-            // 普通码
             try {
                 const decoded = atob(code);
                 const parts = decoded.split('|');
@@ -622,7 +642,7 @@
             return parts ? parts.map(s => s.trim()).filter(s => s) : [text];
         }
 
-        // ========== 语音播放（单句控制） ==========
+        // ========== 语音播放（单句控制完整版） ==========
         let speechRate = 0.9;
         let currentUtterance = null;
         let isPaused = false;
@@ -635,10 +655,11 @@
         }
 
         function speak(text, onEnd, voiceId) {
-            if (!requireActivation()) return;
-            if (window.speechSynthesis.speaking) {
-                window.speechSynthesis.cancel();
+            if (!requireActivation()) {
+                alert('请先激活会员才能使用发音功能。');
+                return;
             }
+            window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
             u.lang = 'ru-RU';
             u.rate = speechRate;
@@ -653,7 +674,12 @@
                     document.getElementById('globalPauseBtn').disabled = true;
                 }
             };
-            u.onerror = () => {
+            u.onerror = (e) => {
+                if (e.error === 'language-unavailable') {
+                    alert('俄语语音不可用，请安装 Google 文字转语音引擎及俄语包。');
+                } else {
+                    alert('语音播放出错：' + e.error);
+                }
                 if (voiceId) {
                     delete sentenceVoices[voiceId];
                     updateSentenceVoiceButtons(voiceId, false);
@@ -685,17 +711,19 @@
         }
 
         function playSentence(idx, loop = false) {
-            if (!requireActivation()) return;
-            const orig = originalSentences[idx];
-            if (!orig) return;
-            if (sentenceVoices[idx]) {
-                if (sentenceVoices[idx].paused) {
-                    window.speechSynthesis.resume();
-                    sentenceVoices[idx].paused = false;
-                    updateSentenceVoiceButtons(idx, true);
-                }
+            if (!requireActivation()) {
+                alert('请先激活会员才能使用发音功能。');
                 return;
             }
+            const orig = originalSentences[idx];
+            if (!orig) return;
+            if (sentenceVoices[idx] && sentenceVoices[idx].paused) {
+                window.speechSynthesis.resume();
+                sentenceVoices[idx].paused = false;
+                updateSentenceVoiceButtons(idx, true);
+                return;
+            }
+            if (sentenceVoices[idx] && !sentenceVoices[idx].paused) return;
             const playFunc = () => {
                 speak(removeAccents(orig), () => {
                     if (loop && loopSentenceIdx === idx) {
@@ -710,7 +738,6 @@
             if (!sentenceVoices[idx]) return;
             window.speechSynthesis.pause();
             sentenceVoices[idx].paused = true;
-            updateSentenceVoiceButtons(idx, true);
         }
 
         function stopSentence(idx) {
@@ -799,7 +826,7 @@
         }
         function formatTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
 
-        // ========== 数字转换 ==========
+        // ========== 数字转换（完整版） ==========
         const ones = ['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
         const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
         const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
@@ -1031,8 +1058,6 @@
                     try {
                         rec.start();
                     } catch (ex) {}
-                } else {
-                    // 手动停止后处理在 stopSentenceRecording 中
                 }
             };
 
@@ -1071,7 +1096,6 @@
             speak(removeAccents(fullOriginalText));
         }
 
-        // 全篇模拟（修复麦克风问题，持续录音）
         function startFullTest() {
             if (!requireActivation()) return;
             if (!fullOriginalText) return;
@@ -1080,12 +1104,11 @@
                 alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。');
                 return;
             }
-            // 如果已有进行中的全篇识别，先停止
             if (fullRecognition && isFullTestRunning) stopFullTest();
             fullRecognition = new SR();
             fullRecognition.lang = 'ru-RU';
             fullRecognition.continuous = true;
-            fullRecognition.interimResults = true;   // 保留 interim 以便看到实时文字（可选）
+            fullRecognition.interimResults = true;
             fullRecognizedText = '';
             fullRecognition.onresult = (e) => {
                 for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -1102,9 +1125,7 @@
                 }
             };
             fullRecognition.onend = () => {
-                // 如果是手动停止，isFullTestRunning 会在 stopFullTest 中设为 false，这里不再重启
                 if (isFullTestRunning) {
-                    // 自动重启（防止意外中断）
                     try {
                         fullRecognition.start();
                     } catch (ex) {}
@@ -1166,6 +1187,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             startCountdown();
             handleModeChange();
+            checkTTS();
         });
     </script>
 </body>
