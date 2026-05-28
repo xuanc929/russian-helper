@@ -1,13 +1,14 @@
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>俄语答辩练习助手</title>
     <style>
-        :root { --primary: #4f6ef7; --primary-light: #eef1ff; --success: #0f9d58; --danger: #d93025; --bg: #f4f6fd; --card: #ffffff; --text: #202124; --accent: #ff6b9d; }
-        body { font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; background: linear-gradient(135deg, #f4f6fd 0%, #e9eefa 100%); color: var(--text); max-width: 860px; margin: 20px auto; padding: 0 16px 60px; }
+        :root { --primary: #4f6ef7; --success: #0f9d58; --danger: #d93025; --bg: #f4f6fd; --card: #ffffff; --text: #202124; --accent: #ff6b9d; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #f4f6fd 0%, #e9eefa 100%); color: var(--text); max-width: 860px; margin: 20px auto; padding: 0 16px 60px; }
         .card { background: var(--card); border-radius: 20px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid rgba(79,110,247,0.08); }
-        textarea { width: 100%; height: 160px; border: 2px solid #e0e4f0; border-radius: 14px; padding: 14px; font-size: 16px; resize: vertical; transition: 0.2s; }
+        textarea { width: 100%; height: 160px; border: 2px solid #e0e4f0; border-radius: 14px; padding: 14px; font-size: 16px; resize: vertical; }
         textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,110,247,0.15); }
         button { background: var(--primary); color: white; border: none; border-radius: 30px; padding: 10px 24px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 5px 4px; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(79,110,247,0.3); }
         button:hover { background: #3b5de7; transform: translateY(-1px); }
@@ -57,479 +58,6 @@
 </head>
 <body>
 
-    <div class="membership-bar" id="membershipBar">⏳ 会员状态加载中...</div>
-
-    <div id="activationModal" class="modal-overlay" style="display:none;">
-        <div class="modal">
-            <h2>🔐 需要激活会员</h2>
-            <p>输入你的激活码以使用全部功能。<br>每个激活码仅限一台设备使用一次。</p>
-            <input type="text" class="activation-input" id="activationCode" placeholder="请输入激活码">
-            <div class="activation-error" id="activationError"></div>
-            <button onclick="activate()">✨ 激活</button>
-            <p style="font-size:0.8em;color:#999;margin-top:10px;">未激活状态下，仅可预览界面，无法使用朗读和评分功能。</p>
-        </div>
-    </div>
-
-    <div class="help-float" onclick="openHelp()">📘 使用指南</div>
-
-    <h1>🎓 俄语答辩朗读练习 <span style="font-size:0.8em;color:#888;">— твой голос, твоя защита</span></h1>
-
-    <div class="card" id="inputArea">
-        <h2>📄 输入你的答辩稿</h2>
-        <textarea id="textInput" placeholder="Вставьте текст защиты..."></textarea>
-        <div class="mode-select">
-            <label>🎯 练习模式：</label>
-            <select id="practiceMode" onchange="handleModeChange()">
-                <option value="bachelor">本科答辩（7分钟）</option>
-                <option value="master">研究生答辩（10分钟）</option>
-                <option value="free_unlimited">自由练习（不限时）</option>
-                <option value="free_custom">自由练习（自定义时间）</option>
-            </select>
-            <span id="customTimeWrapper" style="display:none;">
-                时间：<input type="number" id="customMinutes" min="1" value="5" step="1"> 分钟
-            </span>
-        </div>
-        <button onclick="processText()">✨ 分析重音并开始练习</button>
-        <p style="font-size:0.9em;color:#6b7a99;">按句号、问号、感叹号自动分句</p>
-    </div>
-
-    <div class="card" id="practiceArea" style="display:none;">
-        <div style="display:flex; align-items:center; justify-content: space-between; flex-wrap:wrap;">
-            <div class="rate-control">
-                <label>🐢 语速</label>
-                <input type="range" id="rateSlider" min="0.5" max="1.5" step="0.1" value="0.9" oninput="updateRate(this.value)">
-                <span id="rateValue">0.9x</span>
-            </div>
-            <button id="globalPauseBtn" onclick="toggleGlobalPause()" style="background:#f5f5f5; color:#333; box-shadow:none;" disabled>⏸️ 暂停</button>
-        </div>
-
-        <div class="warning-note">
-            ⚠️ 重音标注为自动生成，对于字母 <strong>ё</strong> 已智能识别。其他单词可能存在偏差，建议点击单词查看翻译时，辅以在线词典确认正确重音。
-        </div>
-
-        <h2>📖 带重音的全文（点击单词看中文）</h2>
-        <div class="accent" id="fullAccentedText"></div>
-        <button onclick="speakFullText()">🔊 听全文示范</button>
-        <hr>
-        <h3>✍️ 分句练习（点击单词看中文）</h3>
-        <div id="sentencesList"></div>
-        <hr>
-        <h3>🏁 全篇模拟答辩</h3>
-        <p id="modeDescription">当前模式：本科答辩，时间限制 7 分钟</p>
-        <button id="startFullTestBtn" onclick="startFullTest()">▶️ 开始全篇测试</button>
-        <button id="stopFullTestBtn" onclick="stopFullTest()" disabled>⏹️ 停止并评分</button>
-        <div class="timer" id="fullTimer">00:00</div>
-        <div id="fullTestResult"></div>
-    </div>
-
-    <div id="congratsModal" class="modal-overlay" style="display:none;">
-        <div class="modal">
-            <h2>🎉 Поздравляю!</h2>
-            <p id="congratsText"></p>
-            <p style="font-size:1.3em; font-weight:bold; color:var(--accent);">祝你答辩成功！✨</p>
-            <button onclick="closeCongrats()">💪 继续练习</button>
-        </div>
-    </div>
-
-    <div id="helpModal" class="modal-overlay" style="display:none;">
-        <div class="modal" style="max-width:480px; text-align:left;">
-            <h2>📘 使用指南</h2>
-            <ol class="help-steps">
-                <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式，点击“分析重音”。</li>
-                <li><strong>查看重音：</strong>系统自动为每个单词标注重音，字母 <strong>ё</strong> 本身已重读，不再添加符号。</li>
-                <li><strong>点击单词：</strong>点击任意俄语单词，可弹出中文翻译。</li>
-                <li><strong>调整语速：</strong>拖动顶部滑块，可减慢或加快朗读示范。</li>
-                <li><strong>分句练习：</strong>🔊 听示范；🔁 循环；🎤 录音打分。</li>
-                <li><strong>全篇模拟：</strong>根据所选模式计时，读完后评分。</li>
-                <li><strong>达标标准：</strong>在限定时间内读完且准确率 ≥ 90%，即视为达标（自由练习不限时只看准确率）。</li>
-            </ol>
-            <p style="color:#888;">💡 使用 Chrome 浏览器，允许麦克风权限，效果最佳。</p>
-            <button onclick="closeHelp()">我知道了</button>
-        </div>
-    </div>
-
-    <div class="footer">
-        🌟 专为俄语毕业答辩设计 | 祝你答辩顺利！🌟
-    </div>
-    <div id="translationPopup" class="translation-popup" style="display:none;"></div>
-
-    <script>
-        // ========== 会员激活系统（带防重复） ==========
-        const ACTIVATION_KEY = 'rus_accent_activation';
-        const ACTIVATION_USED_KEY = 'rus_accent_used_codes';  // 本地记录已用码
-        const COUNTAPI_NS = 'russian-helper';   // countapi 命名空间，固定
-        let membershipTimer = null;
-
-        function getActivationData() {
-            const raw = localStorage.getItem(ACTIVATION_KEY);
-            if (!raw) return null;
-            try { return JSON.parse(raw); } catch { return null; }
-        }
-        function isActivated() {
-            const data = getActivationData();
-            if (!data) return false;
-            return Date.now() < data.expire;
-        }
-        function getRemainingMs() {
-            const data = getActivationData();
-            if (!data) return 0;
-            return Math.max(0, data.expire - Date.now());
-        }
-        function formatCountdown(ms) {
-            if (ms <= 0) return '已过期';
-            const seconds = Math.floor(ms / 1000);
-            const days = Math.floor(seconds / 86400);
-            const hours = Math.floor((seconds % 86400) / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-            let str = '';
-            if (days > 0) str += `${days}天 `;
-            str += `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-            return str;
-        }
-        function updateMembershipBar() {
-            const bar = document.getElementById('membershipBar');
-            if (!isActivated()) {
-                bar.innerHTML = '🔒 未激活会员 | 部分功能不可用';
-                bar.className = 'membership-bar expired';
-                return;
-            }
-            const remainingMs = getRemainingMs();
-            if (remainingMs <= 0) {
-                bar.innerHTML = '⚠️ 会员已过期 | 请重新激活';
-                bar.className = 'membership-bar expired';
-                if (document.getElementById('activationModal').style.display !== 'flex') showActivationModal();
-                return;
-            }
-            bar.className = 'membership-bar';
-            bar.innerHTML = `⭐ 会员剩余：${formatCountdown(remainingMs)}`;
-        }
-        function startCountdown() {
-            if (membershipTimer) clearInterval(membershipTimer);
-            updateMembershipBar();
-            membershipTimer = setInterval(updateMembershipBar, 1000);
-        }
-        function saveActivation(expireTimestamp, codeHash) {
-            localStorage.setItem(ACTIVATION_KEY, JSON.stringify({ expire: expireTimestamp }));
-            // 记录已使用的激活码
-            let used = JSON.parse(localStorage.getItem(ACTIVATION_USED_KEY) || '[]');
-            if (!used.includes(codeHash)) {
-                used.push(codeHash);
-                localStorage.setItem(ACTIVATION_USED_KEY, JSON.stringify(used));
-            }
-            startCountdown();
-            if (document.getElementById('activationModal').style.display === 'flex') {
-                hideActivationModal();
-            }
-        }
-        function showActivationModal() {
-            document.getElementById('activationModal').style.display = 'flex';
-            document.getElementById('activationError').textContent = '';
-        }
-        function hideActivationModal() { document.getElementById('activationModal').style.display = 'none'; }
-
-        // 通过 countapi 检查并消耗激活码
-        async function validateAndUseCode(codeKey) {
-            // codeKey 形如 "namespace/key"
-            const url = `https://api.countapi.xyz/get/${COUNTAPI_NS}/${codeKey}`;
-            try {
-                const resp = await fetch(url);
-                const data = await resp.json();
-                if (data.value !== undefined && data.value > 0) {
-                    return { success: false, message: '该激活码已被使用，不能重复激活。' };
-                }
-                // 首次使用，增加计数
-                const hitUrl = `https://api.countapi.xyz/hit/${COUNTAPI_NS}/${codeKey}`;
-                await fetch(hitUrl);
-                return { success: true };
-            } catch (e) {
-                return { success: false, message: '网络异常，激活验证失败，请稍后再试。' };
-            }
-        }
-
-        async function activate() {
-            const code = document.getElementById('activationCode').value.trim();
-            if (!code) return;
-            try {
-                const decoded = atob(code);
-                // 格式：过期时间戳|唯一随机key
-                const parts = decoded.split('|');
-                if (parts.length !== 2) throw new Error('格式错误');
-                const expire = parseInt(parts[0]);
-                const codeKey = parts[1];
-                if (isNaN(expire) || expire <= Date.now()) {
-                    document.getElementById('activationError').textContent = '激活码无效或已过期。';
-                    return;
-                }
-                // 本地检查是否已用过
-                let used = JSON.parse(localStorage.getItem(ACTIVATION_USED_KEY) || '[]');
-                if (used.includes(codeKey)) {
-                    document.getElementById('activationError').textContent = '该激活码已在此设备上使用过。';
-                    return;
-                }
-                // 远程验证唯一性
-                const validation = await validateAndUseCode(codeKey);
-                if (!validation.success) {
-                    document.getElementById('activationError').textContent = validation.message;
-                    return;
-                }
-                saveActivation(expire, codeKey);
-                alert(`✅ 激活成功！剩余有效期：${formatCountdown(expire - Date.now())}`);
-            } catch {
-                document.getElementById('activationError').textContent = '激活码格式错误。';
-            }
-        }
-
-        function requireActivation() {
-            if (!isActivated()) {
-                showActivationModal();
-                return false;
-            }
-            return true;
-        }
-
-       <!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>俄语答辩练习助手</title>
-    <style>
-        :root {
-            --primary: #4f6ef7;
-            --primary-light: #eef1ff;
-            --success: #0f9d58;
-            --danger: #d93025;
-            --bg: #f4f6fd;
-            --card: #ffffff;
-            --text: #202124;
-            --accent: #ff6b9d;
-        }
-        body {
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: linear-gradient(135deg, #f4f6fd 0%, #e9eefa 100%);
-            color: var(--text);
-            max-width: 860px;
-            margin: 20px auto;
-            padding: 0 16px 60px;
-        }
-        .card {
-            background: var(--card);
-            border-radius: 20px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-            border: 1px solid rgba(79,110,247,0.08);
-        }
-        textarea {
-            width: 100%;
-            height: 160px;
-            border: 2px solid #e0e4f0;
-            border-radius: 14px;
-            padding: 14px;
-            font-size: 16px;
-            resize: vertical;
-            transition: 0.2s;
-        }
-        textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79,110,247,0.15);
-        }
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 30px;
-            padding: 10px 24px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            margin: 5px 4px;
-            transition: 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 2px 6px rgba(79,110,247,0.3);
-        }
-        button:hover { background: #3b5de7; transform: translateY(-1px); }
-        button:disabled { background: #c3c8e0; box-shadow: none; cursor: not-allowed; transform: none; }
-        .accent {
-            font-size: 1.3em;
-            line-height: 1.9;
-            white-space: pre-wrap;
-            background: #fafbff;
-            padding: 16px;
-            border-radius: 14px;
-            margin: 10px 0;
-        }
-        .sentence-item {
-            display: flex;
-            flex-direction: column;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f2fa;
-        }
-        .sentence-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-        .sentence-text { flex: 1; margin-right: 10px; }
-        .play-btn, .loop-btn {
-            background: none;
-            border: none;
-            font-size: 22px;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 20px;
-            transition: 0.1s;
-        }
-        .play-btn:hover, .loop-btn:hover { background: #edf1fe; }
-        .loop-active { background: #dce3ff; color: var(--primary); }
-        .timer { font-weight: bold; font-size: 1.5em; color: var(--primary); }
-        .result { margin-top: 14px; padding: 10px 14px; border-radius: 14px; background: #eef3ff; }
-        .fail { background: #ffeaea; }
-        .pass { background: #e3f9ee; }
-        .word {
-            cursor: pointer;
-            border-bottom: 2px dotted #aab7f0;
-            margin: 0 2px;
-            transition: 0.1s;
-        }
-        .word:hover { background: #e0e5ff; border-radius: 6px; }
-        .translation-popup {
-            position: fixed;
-            background: white;
-            border: 1px solid #ccd5f5;
-            border-radius: 14px;
-            padding: 8px 16px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-            z-index: 1000;
-            max-width: 300px;
-            font-size: 14px;
-        }
-        .diff-correct { color: green; }
-        .diff-wrong { color: red; text-decoration: line-through; }
-        .diff-missing { color: orange; }
-        .diff-extra { color: purple; }
-        .rate-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 8px 0 16px;
-            background: #f0f3ff;
-            padding: 8px 16px;
-            border-radius: 30px;
-            width: fit-content;
-        }
-        .rate-control label { font-weight: 600; }
-        .rate-control input[type=range] { width: 140px; }
-        .rate-control span { min-width: 45px; font-weight: 600; color: var(--primary); }
-        .footer {
-            text-align: center;
-            font-size: 0.9em;
-            color: #8896b0;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #e1e6f5;
-        }
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
-            z-index: 2000;
-        }
-        .modal {
-            background: white; border-radius: 28px; padding: 32px; text-align: center;
-            max-width: 400px; box-shadow: 0 12px 28px rgba(0,0,0,0.3);
-            animation: pop 0.4s ease;
-        }
-        @keyframes pop {
-            0% { transform: scale(0.8); opacity: 0; }
-            80% { transform: scale(1.04); }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .modal h2 { color: var(--primary); margin: 0 0 10px; }
-        .modal p { font-size: 1.05em; color: #555; margin-bottom: 16px; text-align: left; line-height: 1.6; }
-        .help-steps { text-align: left; padding-left: 20px; margin: 10px 0; }
-        .help-steps li { margin-bottom: 8px; }
-        .modal button { margin-top: 8px; }
-        .help-float {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: white;
-            border-radius: 50px;
-            padding: 8px 18px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            cursor: pointer;
-            font-weight: 600;
-            color: var(--primary);
-            z-index: 1500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: 0.2s;
-        }
-        .help-float:hover { background: #f0f3ff; transform: scale(1.05); }
-        .membership-bar {
-            background: linear-gradient(90deg, #eef2ff, #e0e8ff);
-            border-radius: 12px;
-            padding: 8px 18px;
-            margin-bottom: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 500;
-            color: #2c3e8c;
-            border: 1px solid #ccd9ff;
-        }
-        .membership-bar.expired {
-            background: #ffeaea;
-            border-color: #ffc4c4;
-            color: #a82020;
-        }
-        .activation-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e4f0;
-            border-radius: 12px;
-            font-size: 16px;
-            margin: 12px 0;
-            text-align: center;
-            letter-spacing: 2px;
-        }
-        .activation-error { color: var(--danger); font-size: 0.9em; margin: 4px 0; }
-        .mode-select {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-        .mode-select select, .mode-select input {
-            padding: 8px 12px;
-            border-radius: 10px;
-            border: 2px solid #e0e4f0;
-            font-size: 14px;
-        }
-        .mode-select input[type="number"] {
-            width: 70px;
-            margin-left: 4px;
-        }
-        .warning-note {
-            background: #fff8e1;
-            border-left: 4px solid #ffb300;
-            padding: 10px 14px;
-            border-radius: 10px;
-            margin: 10px 0;
-            font-size: 0.9em;
-            color: #5d4e00;
-        }
-    </style>
-</head>
-<body>
-
     <!-- 会员状态条 -->
     <div class="membership-bar" id="membershipBar">⏳ 会员状态加载中...</div>
 
@@ -537,7 +65,7 @@
     <div id="activationModal" class="modal-overlay" style="display:none;">
         <div class="modal">
             <h2>🔐 需要激活会员</h2>
-            <p>输入激活码以使用全部功能。<br>请联系管理员获取激活码。</p>
+            <p>输入激活码以使用全部功能。<br>每个激活码仅限一台设备使用一次。</p>
             <input type="text" class="activation-input" id="activationCode" placeholder="请输入激活码">
             <div class="activation-error" id="activationError"></div>
             <button onclick="activate()">✨ 激活</button>
@@ -614,15 +142,11 @@
             <h2>📘 使用指南</h2>
             <ol class="help-steps">
                 <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式，点击“分析重音”。</li>
-                <li><strong>查看重音：</strong>系统自动为每个单词标注重音（带小撇的字母），注意字母 <strong>ё</strong> 本身已重读，不再添加符号。</li>
+                <li><strong>查看重音：</strong>系统自动为每个单词标注重音，字母 <strong>ё</strong> 本身已重读，不再添加符号。</li>
                 <li><strong>点击单词：</strong>点击任意俄语单词，可弹出中文翻译。</li>
                 <li><strong>调整语速：</strong>拖动顶部滑块，可减慢或加快朗读示范。</li>
-                <li><strong>分句练习：</strong><br>
-                    🔊 点击喇叭听示范；<br>
-                    🔁 点击循环按钮可重复播放该句；<br>
-                    🎤 点击“练习”录音，系统会对比发音并给出准确率。
-                </li>
-                <li><strong>全篇模拟：</strong>根据所选模式计时（本科7分钟/研究生10分钟/自由练习不限或自定义），读完后点停止并评分。</li>
+                <li><strong>分句练习：</strong>🔊 听示范；🔁 循环；🎤 录音打分。</li>
+                <li><strong>全篇模拟：</strong>根据所选模式计时，读完后评分。</li>
                 <li><strong>达标标准：</strong>在限定时间内读完且准确率 ≥ 90%，即视为达标（自由练习不限时只看准确率）。</li>
             </ol>
             <p style="color:#888;">💡 使用 Chrome 浏览器，允许麦克风权限，效果最佳。</p>
@@ -636,8 +160,10 @@
     <div id="translationPopup" class="translation-popup" style="display:none;"></div>
 
     <script>
-        // ========== 会员激活与倒计时系统 ==========
+        // ========== 会员激活系统（含防重复） ==========
         const ACTIVATION_KEY = 'rus_accent_activation';
+        const USED_CODES_KEY = 'rus_accent_used_codes';
+        const COUNTAPI_NS = 'russian-helper';
         let membershipTimer = null;
 
         function getActivationData() {
@@ -657,14 +183,14 @@
         }
         function formatCountdown(ms) {
             if (ms <= 0) return '已过期';
-            const seconds = Math.floor(ms / 1000);
-            const days = Math.floor(seconds / 86400);
-            const hours = Math.floor((seconds % 86400) / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
+            const sec = Math.floor(ms / 1000);
+            const d = Math.floor(sec / 86400);
+            const h = Math.floor((sec % 86400) / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
             let str = '';
-            if (days > 0) str += `${days}天 `;
-            str += `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            if (d > 0) str += `${d}天 `;
+            str += `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
             return str;
         }
         function updateMembershipBar() {
@@ -674,53 +200,36 @@
                 bar.className = 'membership-bar expired';
                 return;
             }
-            const remainingMs = getRemainingMs();
-            if (remainingMs <= 0) {
+            const left = getRemainingMs();
+            if (left <= 0) {
                 bar.innerHTML = '⚠️ 会员已过期 | 请重新激活';
                 bar.className = 'membership-bar expired';
-                if (document.getElementById('activationModal').style.display !== 'flex') {
-                    showActivationModal();
-                }
+                if (document.getElementById('activationModal').style.display !== 'flex') showActivationModal();
                 return;
             }
             bar.className = 'membership-bar';
-            bar.innerHTML = `⭐ 会员剩余：${formatCountdown(remainingMs)}`;
+            bar.innerHTML = `⭐ 会员剩余：${formatCountdown(left)}`;
         }
         function startCountdown() {
             if (membershipTimer) clearInterval(membershipTimer);
             updateMembershipBar();
             membershipTimer = setInterval(updateMembershipBar, 1000);
         }
-        function saveActivation(expireTimestamp) {
+        function saveActivation(expireTimestamp, codeHash) {
             localStorage.setItem(ACTIVATION_KEY, JSON.stringify({ expire: expireTimestamp }));
-            startCountdown();
-            if (document.getElementById('activationModal').style.display === 'flex') {
-                hideActivationModal();
+            let used = JSON.parse(localStorage.getItem(USED_CODES_KEY) || '[]');
+            if (!used.includes(codeHash)) {
+                used.push(codeHash);
+                localStorage.setItem(USED_CODES_KEY, JSON.stringify(used));
             }
+            startCountdown();
+            hideActivationModal();
         }
         function showActivationModal() {
             document.getElementById('activationModal').style.display = 'flex';
             document.getElementById('activationError').textContent = '';
         }
-        function hideActivationModal() {
-            document.getElementById('activationModal').style.display = 'none';
-        }
-        function activate() {
-            const code = document.getElementById('activationCode').value.trim();
-            if (!code) return;
-            try {
-                const decoded = atob(code);
-                const expire = parseInt(decoded);
-                if (isNaN(expire) || expire <= Date.now()) {
-                    document.getElementById('activationError').textContent = '激活码无效或已过期。';
-                    return;
-                }
-                saveActivation(expire);
-                alert(`✅ 激活成功！剩余有效期：${formatCountdown(expire - Date.now())}`);
-            } catch {
-                document.getElementById('activationError').textContent = '激活码格式错误。';
-            }
-        }
+        function hideActivationModal() { document.getElementById('activationModal').style.display = 'none'; }
         function requireActivation() {
             if (!isActivated()) {
                 showActivationModal();
@@ -729,48 +238,56 @@
             return true;
         }
 
-        // ========== 练习模式处理 ==========
-        let currentTimeLimit = 7 * 60; // 默认本科7分钟（秒）
-        let isTimeLimited = true;
-        let practiceMode = 'bachelor';
-
-        function handleModeChange() {
-            const mode = document.getElementById('practiceMode').value;
-            const wrapper = document.getElementById('customTimeWrapper');
-            if (mode === 'free_custom') {
-                wrapper.style.display = 'inline';
-            } else {
-                wrapper.style.display = 'none';
+        // 远程验证激活码唯一性
+        async function validateAndUseCode(codeKey) {
+            const getUrl = `https://api.countapi.xyz/get/${COUNTAPI_NS}/${codeKey}`;
+            const hitUrl = `https://api.countapi.xyz/hit/${COUNTAPI_NS}/${codeKey}`;
+            try {
+                const resp = await fetch(getUrl);
+                const data = await resp.json();
+                if (data.value !== undefined && data.value > 0) {
+                    return { success: false, message: '该激活码已被使用，不能重复激活。' };
+                }
+                await fetch(hitUrl);
+                return { success: true };
+            } catch (e) {
+                return { success: false, message: '网络异常，激活验证失败，请检查网络后重试。' };
             }
         }
 
-        function updateTimeLimitFromMode() {
-            const mode = document.getElementById('practiceMode').value;
-            practiceMode = mode;
-            if (mode === 'bachelor') {
-                currentTimeLimit = 7 * 60;
-                isTimeLimited = true;
-            } else if (mode === 'master') {
-                currentTimeLimit = 10 * 60;
-                isTimeLimited = true;
-            } else if (mode === 'free_unlimited') {
-                currentTimeLimit = Infinity;
-                isTimeLimited = false;
-            } else if (mode === 'free_custom') {
-                const mins = parseInt(document.getElementById('customMinutes').value) || 5;
-                currentTimeLimit = mins * 60;
-                isTimeLimited = true;
+        async function activate() {
+            const code = document.getElementById('activationCode').value.trim();
+            if (!code) return;
+            try {
+                const decoded = atob(code);
+                const parts = decoded.split('|');
+                if (parts.length !== 2) throw new Error('格式错误');
+                const expire = parseInt(parts[0]);
+                const codeKey = parts[1];
+                if (isNaN(expire) || expire <= Date.now()) {
+                    document.getElementById('activationError').textContent = '激活码无效或已过期。';
+                    return;
+                }
+                // 本地检查
+                let used = JSON.parse(localStorage.getItem(USED_CODES_KEY) || '[]');
+                if (used.includes(codeKey)) {
+                    document.getElementById('activationError').textContent = '该激活码已在此设备上使用过。';
+                    return;
+                }
+                // 远程验证
+                const validation = await validateAndUseCode(codeKey);
+                if (!validation.success) {
+                    document.getElementById('activationError').textContent = validation.message;
+                    return;
+                }
+                saveActivation(expire, codeKey);
+                alert(`✅ 激活成功！剩余有效期：${formatCountdown(expire - Date.now())}`);
+            } catch {
+                document.getElementById('activationError').textContent = '激活码格式错误。';
             }
-            // 更新描述文字
-            let desc = '';
-            if (mode === 'bachelor') desc = '本科答辩，时间限制 7 分钟';
-            else if (mode === 'master') desc = '研究生答辩，时间限制 10 分钟';
-            else if (mode === 'free_unlimited') desc = '自由练习，不限时间';
-            else desc = `自由练习，时间限制 ${Math.floor(currentTimeLimit/60)} 分钟`;
-            document.getElementById('modeDescription').textContent = `当前模式：${desc}`;
         }
 
-        // ========== 内置重音词典 + 规则（优化 ё） ==========
+        // ========== 内置重音词典 + 规则（ё 智能处理） ==========
         const stressDict = {
             "здравствуйте":"здра́вствуйте","как":"ка́к","дела":"дела́","спасибо":"спаси́бо",
             "пожалуйста":"пожа́луйста","меня":"меня́","зовут":"зову́т","студент":"студе́нт",
@@ -784,32 +301,26 @@
         };
 
         function addStress(word) {
-            // 如果单词中包含 ё 或 Ё，直接返回原词（ё 本身就是重音所在）
-            if (/[ёЁ]/.test(word)) return word;
-
+            if (/[ёЁ]/.test(word)) return word; // ё 不加重音
             const lower = word.toLowerCase();
             if (stressDict[lower]) return stressDict[lower];
-            // 简单规则：以 -ая, -ый, -ое 结尾尝试倒数第二个音节
             if (/[аяуюеёиыоэ]$/i.test(word) && word.length > 3) {
                 const vowels = 'аеёиоуыэюя';
                 let cnt = 0;
                 for (let i = word.length-1; i >= 0; i--) {
                     if (vowels.includes(word[i].toLowerCase())) {
                         cnt++;
-                        if (cnt === 2) {
-                            return word.slice(0, i) + word[i].normalize('NFD') + '\u0301' + word.slice(i+1);
-                        }
+                        if (cnt === 2) return word.slice(0,i) + word[i].normalize('NFD') + '\u0301' + word.slice(i+1);
                     }
                 }
             }
-            const firstVowel = word.search(/[аеёиоуыэюя]/i);
-            if (firstVowel !== -1) {
-                const ch = word[firstVowel];
-                return word.slice(0, firstVowel) + ch.normalize('NFD') + '\u0301' + word.slice(firstVowel+1);
+            const first = word.search(/[аеёиоуыэюя]/i);
+            if (first !== -1) {
+                const ch = word[first];
+                return word.slice(0,first) + ch.normalize('NFD') + '\u0301' + word.slice(first+1);
             }
             return word;
         }
-
         function stressText(text) { return text.replace(/[А-Яа-яЁё]+/g, addStress); }
         function removeAccents(str) { return str.normalize('NFD').replace(/[\u0301]/g, '').normalize('NFC'); }
         function cleanText(str) { return removeAccents(str).toLowerCase().replace(/[^а-яёa-z0-9\s]/gi, '').trim(); }
@@ -823,33 +334,29 @@
         let currentUtterance = null;
         let isPaused = false;
         let loopSentenceIdx = -1;
-
-        function updateRate(val) {
-            speechRate = parseFloat(val);
-            document.getElementById('rateValue').textContent = val + 'x';
+        function updateRate(v) {
+            speechRate = parseFloat(v);
+            document.getElementById('rateValue').textContent = v + 'x';
         }
-
-        function speak(text, onEndCallback) {
+        function speak(text, onEnd) {
             if (!requireActivation()) return;
             window.speechSynthesis.cancel();
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = 'ru-RU';
-            utter.rate = speechRate;
-            currentUtterance = utter;
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'ru-RU';
+            u.rate = speechRate;
+            currentUtterance = u;
             isPaused = false;
             document.getElementById('globalPauseBtn').textContent = '⏸️ 暂停';
             document.getElementById('globalPauseBtn').disabled = false;
-            utter.onend = () => {
+            u.onend = () => {
                 currentUtterance = null;
                 document.getElementById('globalPauseBtn').disabled = true;
-                if (onEndCallback) onEndCallback();
+                if (onEnd) onEnd();
             };
-            window.speechSynthesis.speak(utter);
+            window.speechSynthesis.speak(u);
         }
-
         function toggleGlobalPause() {
-            if (!requireActivation()) return;
-            if (!currentUtterance) return;
+            if (!requireActivation() || !currentUtterance) return;
             if (isPaused) {
                 window.speechSynthesis.resume();
                 isPaused = false;
@@ -860,23 +367,19 @@
                 document.getElementById('globalPauseBtn').textContent = '▶️ 继续';
             }
         }
-
         function playSentence(idx, loop = false) {
             if (!requireActivation()) return;
             const orig = originalSentences[idx];
             if (!orig) return;
             const play = () => {
                 if (loop && loopSentenceIdx === idx) {
-                    speak(removeAccents(orig), () => {
-                        if (loopSentenceIdx === idx) playSentence(idx, true);
-                    });
+                    speak(removeAccents(orig), () => { if (loopSentenceIdx === idx) playSentence(idx, true); });
                 } else {
                     speak(removeAccents(orig));
                 }
             };
             play();
         }
-
         function toggleLoop(idx) {
             if (loopSentenceIdx === idx) {
                 loopSentenceIdx = -1;
@@ -884,7 +387,7 @@
             } else {
                 loopSentenceIdx = idx;
                 document.querySelectorAll('.loop-btn').forEach(b => b.classList.remove('loop-active'));
-                const btn = document.getElementById('loopBtn' + idx);
+                const btn = document.getElementById('loopBtn'+idx);
                 if (btn) btn.classList.add('loop-active');
             }
         }
@@ -896,7 +399,7 @@
             try {
                 const r = await fetch(url); const d = await r.json();
                 if (d.responseStatus === 200) return d.responseData.translatedText;
-            } catch(e) {}
+            } catch(e){}
             return '翻译失败';
         }
         function showTranslation(word, event) {
@@ -915,20 +418,20 @@
 
         // ========== 发音对比 ==========
         function wordDiff(ref, hyp) {
-            const refW = cleanText(ref).split(/\s+/).filter(w=>w);
-            const hypW = cleanText(hyp).split(/\s+/).filter(w=>w);
-            const dp = Array(refW.length+1).fill().map(()=>Array(hypW.length+1).fill(0));
-            for(let i=0;i<=refW.length;i++) dp[i][0]=i;
-            for(let j=0;j<=hypW.length;j++) dp[0][j]=j;
-            for(let i=1;i<=refW.length;i++) for(let j=1;j<=hypW.length;j++){
-                dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+(refW[i-1]===hypW[j-1]?0:1));
+            const rw = cleanText(ref).split(/\s+/).filter(w=>w);
+            const hw = cleanText(hyp).split(/\s+/).filter(w=>w);
+            const dp = Array(rw.length+1).fill().map(()=>Array(hw.length+1).fill(0));
+            for(let i=0;i<=rw.length;i++) dp[i][0]=i;
+            for(let j=0;j<=hw.length;j++) dp[0][j]=j;
+            for(let i=1;i<=rw.length;i++) for(let j=1;j<=hw.length;j++){
+                dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+(rw[i-1]===hw[j-1]?0:1));
             }
-            let i=refW.length,j=hypW.length; const diff=[];
+            let i=rw.length,j=hw.length; const diff=[];
             while(i>0||j>0){
-                if(i>0&&j>0&&refW[i-1]===hypW[j-1]){ diff.unshift({type:'correct',ref:refW[i-1],hyp:hypW[j-1]}); i--;j--; }
-                else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){ diff.unshift({type:'wrong',ref:refW[i-1],hyp:hypW[j-1]}); i--;j--; }
-                else if(j>0&&dp[i][j]===dp[i][j-1]+1){ diff.unshift({type:'extra',ref:null,hyp:hypW[j-1]}); j--; }
-                else { diff.unshift({type:'missing',ref:refW[i-1],hyp:null}); i--; }
+                if(i>0&&j>0&&rw[i-1]===hw[j-1]){ diff.unshift({type:'correct',ref:rw[i-1],hyp:hw[j-1]}); i--;j--; }
+                else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){ diff.unshift({type:'wrong',ref:rw[i-1],hyp:hw[j-1]}); i--;j--; }
+                else if(j>0&&dp[i][j]===dp[i][j-1]+1){ diff.unshift({type:'extra',ref:null,hyp:hw[j-1]}); j--; }
+                else { diff.unshift({type:'missing',ref:rw[i-1],hyp:null}); i--; }
             }
             return diff;
         }
@@ -947,6 +450,30 @@
         }
         function formatTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
 
+        // ========== 练习模式 ==========
+        let currentTimeLimit = 7*60;
+        let isTimeLimited = true;
+        function handleModeChange() {
+            const mode = document.getElementById('practiceMode').value;
+            document.getElementById('customTimeWrapper').style.display = mode==='free_custom' ? 'inline' : 'none';
+        }
+        function updateTimeLimitFromMode() {
+            const mode = document.getElementById('practiceMode').value;
+            if (mode==='bachelor') { currentTimeLimit=7*60; isTimeLimited=true; }
+            else if (mode==='master') { currentTimeLimit=10*60; isTimeLimited=true; }
+            else if (mode==='free_unlimited') { currentTimeLimit=Infinity; isTimeLimited=false; }
+            else if (mode==='free_custom') {
+                const mins = parseInt(document.getElementById('customMinutes').value)||5;
+                currentTimeLimit = mins*60; isTimeLimited=true;
+            }
+            let desc = '';
+            if (mode==='bachelor') desc='本科答辩，时间限制 7 分钟';
+            else if (mode==='master') desc='研究生答辩，时间限制 10 分钟';
+            else if (mode==='free_unlimited') desc='自由练习，不限时间';
+            else desc=`自由练习，时间限制 ${Math.floor(currentTimeLimit/60)} 分钟`;
+            document.getElementById('modeDescription').textContent = `当前模式：${desc}`;
+        }
+
         // ========== 全局状态 ==========
         let originalSentences=[], accentedSentences=[], fullOriginalText='', sentenceScores={};
         let fullTestStartTime=null, fullTestTimerInterval=null, fullRecognition=null, fullRecognizedText='', isFullTestRunning=false;
@@ -954,7 +481,7 @@
         function processText() {
             const text = document.getElementById('textInput').value.trim();
             if(!text) return alert('Пожалуйста, введите текст.');
-            updateTimeLimitFromMode();   // 根据当前模式设置时限
+            updateTimeLimitFromMode();
             fullOriginalText = text;
             originalSentences = splitSentences(text);
             accentedSentences = originalSentences.map(s=>stressText(s));
@@ -1045,28 +572,22 @@
             document.getElementById('stopFullTestBtn').disabled=true;
             const diff = wordDiff(fullOriginalText, fullRecognizedText);
             const acc = wordAccuracyFromDiff(diff);
-
-            let timeOk = true;
-            if (isTimeLimited) {
-                timeOk = elapsed <= currentTimeLimit;
-            }
+            let timeOk = isTimeLimited ? elapsed <= currentTimeLimit : true;
             const ok = timeOk && acc >= 90;
-
-            let resultMsg = '';
+            let msg = '';
             if (ok) {
-                resultMsg = `✅ 达标！时间：${formatTime(elapsed)}，准确率：${acc}%`;
-                document.getElementById('congratsText').innerHTML = `你的朗读已达标！<br>发音很棒${isTimeLimited ? '，时间也控制得很好' : ''}！`;
+                msg = `✅ 达标！时间：${formatTime(elapsed)}，准确率：${acc}%`;
+                document.getElementById('congratsText').innerHTML = `你的朗读已达标！<br>发音很棒${isTimeLimited?'，时间也控制得很好':''}！`;
                 document.getElementById('congratsModal').style.display = 'flex';
             } else {
                 let reason = '';
                 if (!timeOk) reason += `超时：${formatTime(elapsed)}（需 ≤ ${formatTime(currentTimeLimit)}） `;
                 if (acc < 90) reason += `准确率：${acc}%（需 ≥ 90%）`;
-                resultMsg = `❌ 未达标。${reason}`;
+                msg = `❌ 未达标。${reason}`;
             }
-
             const div = document.getElementById('fullTestResult');
             div.className = 'result '+(ok?'pass':'fail');
-            div.innerHTML = resultMsg + '<br><small>📝 全文对比：'+renderDiff(diff)+'</small>';
+            div.innerHTML = msg + '<br><small>📝 全文对比：'+renderDiff(diff)+'</small>';
         }
 
         function closeCongrats() { document.getElementById('congratsModal').style.display = 'none'; }
@@ -1074,6 +595,7 @@
         // ========== 帮助弹窗 ==========
         function openHelp() { document.getElementById('helpModal').style.display = 'flex'; }
         function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
+        // 点击遮罩关闭帮助和祝贺（激活窗不允许遮罩关闭）
         document.addEventListener('click', function(e) {
             if (e.target.id === 'helpModal') closeHelp();
             if (e.target.id === 'congratsModal') closeCongrats();
@@ -1082,7 +604,7 @@
         // ========== 初始化 ==========
         window.addEventListener('DOMContentLoaded', () => {
             startCountdown();
-            handleModeChange();  // 初始化时处理自定义时间显示
+            handleModeChange();
         });
     </script>
 </body>
