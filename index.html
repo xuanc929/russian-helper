@@ -260,6 +260,7 @@
 </head>
 <body>
 
+    <!-- 会员状态条 -->
     <div class="membership-bar" id="membershipBar">⏳ 会员状态加载中...</div>
 
     <!-- 激活弹窗 -->
@@ -274,6 +275,7 @@
         </div>
     </div>
 
+    <!-- 浮动帮助按钮 -->
     <div class="help-float" onclick="openHelp()">📘 使用指南</div>
 
     <h1>🎓 俄语答辩朗读练习 <span style="font-size:0.8em;color:#888;">— твой голос, твоя защита</span></h1>
@@ -308,7 +310,7 @@
         <p style="font-size:0.9em;color:#6b7a99;">按句号、问号、感叹号自动分句</p>
     </div>
 
-    <!-- 数字/年份转换器 -->
+    <!-- 数字/年份转换器卡片 -->
     <div class="card" id="numberConverterCard">
         <h2>🔢 数字/年份/百分数转换器</h2>
         <p style="color:#555;">支持整数、小数（用点或逗号）、百分号（%）。例如：2023、3.14、25%、1500、0.5</p>
@@ -346,6 +348,7 @@
         <button id="stopFullTestBtn" onclick="stopFullTest()" disabled>⏹️ 停止并评分</button>
         <div class="timer" id="fullTimer">00:00</div>
         <div id="fullTestResult"></div>
+        <!-- 修改稿件按钮 -->
         <button onclick="goBackToEdit()" style="background:#f8f9fa; color:#333; margin-top:20px; box-shadow:none;">✏️ 修改稿件</button>
     </div>
 
@@ -367,8 +370,8 @@
                 <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式与口语标准，点击“分析重音”。</li>
                 <li><strong>查看重音与翻译：</strong>系统自动为每个单词标注重音（ё 不重复标），点击单词可看中文翻译。</li>
                 <li><strong>调整语速与数字转换：</strong>可拖动语速滑块，下方数字转换器帮你读年份/百分数。</li>
-                <li><strong>分句练习：</strong>🔊 听示范，⏸️暂停，⏹️停止，🔁循环。点击 🎤开始 录音，读完后按 ⏹️结束 查看评分。</li>
-                <li><strong>全篇模拟：</strong>按所选模式计时朗读，结束后评分。口语标准决定达标门槛（60%/75%/85%/90%）。</li>
+                <li><strong>分句练习：</strong>🔊 听示范，⏸️暂停，⏹️停止，🔁循环。点击 🎤开始 录音，读完后按 ⏹️结束 查看评分（录音不会自动停止）。</li>
+                <li><strong>全篇模拟：</strong>按所选模式计时朗读，点击开始后全程录音，读完后点击停止并评分。口语标准决定达标门槛（60%/75%/85%/90%）。</li>
                 <li><strong>修改稿件：</strong>练习页底部有“✏️ 修改稿件”，可随时返回修改。</li>
                 <li><strong>📌 公用激活码：</strong>输入 <code>11111111</code> 可激活，有效期1小时，每日可激活一次。</li>
             </ol>
@@ -390,7 +393,7 @@
         const COUNTAPI_NS = 'russian-helper';
         let membershipTimer = null;
 
-        // 专属码配置：{ 激活码: 有效期（年） }
+        // 专属码配置
         const SPECIAL_CODES = {
             'xuanzs929': 100,
             '小管555': 10,
@@ -505,8 +508,7 @@
         async function activate() {
             const code = document.getElementById('activationCode').value.trim();
             if (!code) return;
-
-            // 检查是否为专属码
+            // 专属码
             if (SPECIAL_CODES.hasOwnProperty(code)) {
                 const years = SPECIAL_CODES[code];
                 const expire = Date.now() + years * 365 * 24 * 60 * 60 * 1000;
@@ -514,7 +516,6 @@
                 alert(`✅ 专属码激活成功！有效期至 ${new Date(expire).toLocaleDateString()}`);
                 return;
             }
-
             // 公用码
             if (code === '11111111') {
                 const result = await tryFreeActivation();
@@ -525,8 +526,7 @@
                 }
                 return;
             }
-
-            // 普通付费激活码
+            // 普通码
             try {
                 const decoded = atob(code);
                 const parts = decoded.split('|');
@@ -581,7 +581,7 @@
             sentenceVoices = {};
         }
 
-        // ========== 重音 ==========
+        // ========== 重音词典 ==========
         const stressDict = {
             "здравствуйте":"здра́вствуйте","как":"ка́к","дела":"дела́","спасибо":"спаси́бо",
             "пожалуйста":"пожа́луйста","меня":"меня́","зовут":"зову́т","студент":"студе́нт",
@@ -622,7 +622,7 @@
             return parts ? parts.map(s => s.trim()).filter(s => s) : [text];
         }
 
-        // ========== 语音播放 ==========
+        // ========== 语音播放（单句控制） ==========
         let speechRate = 0.9;
         let currentUtterance = null;
         let isPaused = false;
@@ -976,9 +976,10 @@
             });
         }
 
+        // 单句录音（不自动停止）
         function toggleSentenceRecording(idx) {
             if (!requireActivation()) return;
-            if (sentenceRecognitions[idx]) {
+            if (sentenceRecognitions[idx] && !sentenceRecognitions[idx].stopped) {
                 stopSentenceRecording(idx);
             } else {
                 startSentenceRecording(idx);
@@ -987,52 +988,75 @@
 
         function startSentenceRecording(idx) {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(!SR) {
+            if (!SR) {
                 alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。');
                 return;
             }
             for (let key in sentenceRecognitions) {
-                if (key != idx && sentenceRecognitions[key]) stopSentenceRecording(parseInt(key));
+                if (key != idx && sentenceRecognitions[key] && !sentenceRecognitions[key].stopped) {
+                    stopSentenceRecording(parseInt(key));
+                }
             }
             const rec = new SR();
             rec.lang = 'ru-RU';
+            rec.continuous = true;
             rec.interimResults = false;
             rec.maxAlternatives = 1;
-            rec.onresult = (e) => {
-                const trans = e.results[0][0].transcript;
-                const orig = originalSentences[idx];
-                const diff = wordDiff(orig, trans);
-                const acc = wordAccuracyFromDiff(diff);
-                if (sentenceScores[idx] === undefined || acc > sentenceScores[idx]) sentenceScores[idx] = acc;
-                document.getElementById('score'+idx).innerText = acc+'%';
-                document.getElementById('diff'+idx).innerHTML = '📝 发音对比：'+renderDiff(diff);
-                cleanupRecording(idx);
+
+            sentenceRecognitions[idx] = {
+                recognition: rec,
+                results: [],
+                stopped: false
             };
+
+            rec.onresult = (e) => {
+                if (e.results && e.results.length > 0) {
+                    const last = e.results[e.results.length - 1];
+                    if (last.isFinal) {
+                        sentenceRecognitions[idx].results.push(last[0].transcript);
+                    }
+                }
+            };
+
             rec.onerror = (e) => {
                 if (e.error === 'not-allowed') {
                     alert('麦克风权限未开启，请在浏览器设置中允许使用麦克风。');
-                } else {
+                } else if (e.error !== 'aborted') {
                     alert('识别出错: ' + e.error);
                 }
-                cleanupRecording(idx);
             };
+
             rec.onend = () => {
-                if (sentenceRecognitions[idx]) cleanupRecording(idx);
+                if (sentenceRecognitions[idx] && !sentenceRecognitions[idx].stopped) {
+                    try {
+                        rec.start();
+                    } catch (ex) {}
+                } else {
+                    // 手动停止后处理在 stopSentenceRecording 中
+                }
             };
+
             rec.start();
-            sentenceRecognitions[idx] = { recognition: rec };
             document.getElementById('recordBtn'+idx).textContent = '⏹️ 结束';
         }
 
         function stopSentenceRecording(idx) {
             if (!sentenceRecognitions[idx]) return;
-            sentenceRecognitions[idx].recognition.stop();
-            cleanupRecording(idx);
-        }
-
-        function cleanupRecording(idx) {
-            delete sentenceRecognitions[idx];
+            const item = sentenceRecognitions[idx];
+            item.stopped = true;
+            item.recognition.stop();
             document.getElementById('recordBtn'+idx).textContent = '🎤 开始';
+
+            const fullText = item.results.join(' ');
+            const orig = originalSentences[idx];
+            const diff = wordDiff(orig, fullText);
+            const acc = wordAccuracyFromDiff(diff);
+            if (sentenceScores[idx] === undefined || acc > sentenceScores[idx]) {
+                sentenceScores[idx] = acc;
+            }
+            document.getElementById('score'+idx).innerText = acc + '%';
+            document.getElementById('diff'+idx).innerHTML = '📝 发音对比：' + renderDiff(diff);
+            delete sentenceRecognitions[idx];
         }
 
         function speakFullText() {
@@ -1047,31 +1071,67 @@
             speak(removeAccents(fullOriginalText));
         }
 
+        // 全篇模拟（修复麦克风问题，持续录音）
         function startFullTest() {
             if (!requireActivation()) return;
-            if(!fullOriginalText) return;
-            const SR = window.SpeechRecognition||webkitSpeechRecognition;
-            if(!SR) return alert('Нужен Chrome');
-            fullRecognition = new SR(); fullRecognition.lang='ru-RU'; fullRecognition.continuous=true; fullRecognition.interimResults=true;
-            fullRecognizedText='';
-            fullRecognition.onresult = (e)=>{ for(let i=e.resultIndex;i<e.results.length;i++) if(e.results[i].isFinal) fullRecognizedText+=e.results[i][0].transcript+' '; };
-            fullRecognition.onerror = (e)=>alert('Ошибка: '+e.error);
-            fullRecognition.onend = ()=>{ if(isFullTestRunning) stopFullTest(); };
-            fullRecognition.start(); isFullTestRunning=true; fullTestStartTime=Date.now();
-            document.getElementById('startFullTestBtn').disabled=true;
-            document.getElementById('stopFullTestBtn').disabled=false;
-            document.getElementById('fullTestResult').innerHTML='';
-            fullTestTimerInterval = setInterval(()=>{ document.getElementById('fullTimer').innerText = formatTime((Date.now()-fullTestStartTime)/1000); },200);
+            if (!fullOriginalText) return;
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {
+                alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。');
+                return;
+            }
+            // 如果已有进行中的全篇识别，先停止
+            if (fullRecognition && isFullTestRunning) stopFullTest();
+            fullRecognition = new SR();
+            fullRecognition.lang = 'ru-RU';
+            fullRecognition.continuous = true;
+            fullRecognition.interimResults = true;   // 保留 interim 以便看到实时文字（可选）
+            fullRecognizedText = '';
+            fullRecognition.onresult = (e) => {
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    if (e.results[i].isFinal) {
+                        fullRecognizedText += e.results[i][0].transcript + ' ';
+                    }
+                }
+            };
+            fullRecognition.onerror = (e) => {
+                if (e.error === 'not-allowed') {
+                    alert('麦克风权限未开启，请在浏览器设置中允许使用麦克风。');
+                } else {
+                    alert('全篇识别错误: ' + e.error);
+                }
+            };
+            fullRecognition.onend = () => {
+                // 如果是手动停止，isFullTestRunning 会在 stopFullTest 中设为 false，这里不再重启
+                if (isFullTestRunning) {
+                    // 自动重启（防止意外中断）
+                    try {
+                        fullRecognition.start();
+                    } catch (ex) {}
+                }
+            };
+            fullRecognition.start();
+            isFullTestRunning = true;
+            fullTestStartTime = Date.now();
+            document.getElementById('startFullTestBtn').disabled = true;
+            document.getElementById('stopFullTestBtn').disabled = false;
+            document.getElementById('fullTestResult').innerHTML = '';
+            fullTestTimerInterval = setInterval(() => {
+                document.getElementById('fullTimer').innerText = formatTime((Date.now() - fullTestStartTime) / 1000);
+            }, 200);
         }
 
         function stopFullTest() {
-            if(!isFullTestRunning) return;
-            if(fullRecognition) fullRecognition.stop();
-            isFullTestRunning=false; clearInterval(fullTestTimerInterval);
-            const elapsed = (Date.now()-fullTestStartTime)/1000;
+            if (!isFullTestRunning) return;
+            if (fullRecognition) {
+                fullRecognition.stop();
+            }
+            isFullTestRunning = false;
+            clearInterval(fullTestTimerInterval);
+            const elapsed = (Date.now() - fullTestStartTime) / 1000;
             document.getElementById('fullTimer').innerText = formatTime(elapsed);
-            document.getElementById('startFullTestBtn').disabled=false;
-            document.getElementById('stopFullTestBtn').disabled=true;
+            document.getElementById('startFullTestBtn').disabled = false;
+            document.getElementById('stopFullTestBtn').disabled = true;
             const diff = wordDiff(fullOriginalText, fullRecognizedText);
             const acc = wordAccuracyFromDiff(diff);
             const threshold = getAccuracyThreshold();
@@ -1080,7 +1140,7 @@
             let msg = '';
             if (ok) {
                 msg = `✅ 达标！时间：${formatTime(elapsed)}，准确率：${acc}%（标准 ${threshold}%）`;
-                document.getElementById('congratsText').innerHTML = `你的朗读已达标！<br>发音很棒${isTimeLimited?'，时间也控制得很好':''}！`;
+                document.getElementById('congratsText').innerHTML = `你的朗读已达标！<br>发音很棒${isTimeLimited ? '，时间也控制得很好' : ''}！`;
                 document.getElementById('congratsModal').style.display = 'flex';
             } else {
                 let reason = '';
@@ -1089,8 +1149,8 @@
                 msg = `❌ 未达标。${reason}`;
             }
             const div = document.getElementById('fullTestResult');
-            div.className = 'result '+(ok?'pass':'fail');
-            div.innerHTML = msg + '<br><small>📝 全文对比：'+renderDiff(diff)+'</small>';
+            div.className = 'result ' + (ok ? 'pass' : 'fail');
+            div.innerHTML = msg + '<br><small>📝 全文对比：' + renderDiff(diff) + '</small>';
         }
 
         function closeCongrats() { document.getElementById('congratsModal').style.display = 'none'; }
@@ -1102,6 +1162,7 @@
             if (e.target.id === 'congratsModal') closeCongrats();
         });
 
+        // ========== 初始化 ==========
         window.addEventListener('DOMContentLoaded', () => {
             startCountdown();
             handleModeChange();
