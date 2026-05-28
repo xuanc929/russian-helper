@@ -49,15 +49,15 @@
             color: white;
             border: none;
             border-radius: 30px;
-            padding: 10px 24px;
-            font-size: 15px;
+            padding: 8px 18px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            margin: 5px 4px;
+            margin: 3px 3px;
             transition: 0.2s;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             box-shadow: 0 2px 6px rgba(79,110,247,0.3);
         }
         button:hover { background: #3b5de7; transform: translateY(-1px); }
@@ -84,16 +84,16 @@
             flex-wrap: wrap;
         }
         .sentence-text { flex: 1; margin-right: 10px; }
-        .play-btn, .loop-btn {
+        .play-btn, .loop-btn, .pause-btn, .stop-btn {
             background: none;
             border: none;
-            font-size: 22px;
+            font-size: 20px;
             cursor: pointer;
-            padding: 4px 8px;
+            padding: 4px 6px;
             border-radius: 20px;
             transition: 0.1s;
         }
-        .play-btn:hover, .loop-btn:hover { background: #edf1fe; }
+        .play-btn:hover, .loop-btn:hover, .pause-btn:hover, .stop-btn:hover { background: #edf1fe; }
         .loop-active { background: #dce3ff; color: var(--primary); }
         .timer { font-weight: bold; font-size: 1.5em; color: var(--primary); }
         .result { margin-top: 14px; padding: 10px 14px; border-radius: 14px; background: #eef3ff; }
@@ -348,7 +348,6 @@
         <button id="stopFullTestBtn" onclick="stopFullTest()" disabled>⏹️ 停止并评分</button>
         <div class="timer" id="fullTimer">00:00</div>
         <div id="fullTestResult"></div>
-        <!-- 修改稿件按钮 -->
         <button onclick="goBackToEdit()" style="background:#f8f9fa; color:#333; margin-top:20px; box-shadow:none;">✏️ 修改稿件</button>
     </div>
 
@@ -362,7 +361,7 @@
         </div>
     </div>
 
-    <!-- 帮助弹窗（已去除多余语句） -->
+    <!-- 帮助弹窗 -->
     <div id="helpModal" class="modal-overlay" style="display:none;">
         <div class="modal" style="max-width:500px; text-align:left;">
             <h2>📘 使用指南</h2>
@@ -370,7 +369,7 @@
                 <li><strong>粘贴稿件：</strong>把答辩稿的俄语文本粘贴到输入框，选择练习模式与口语标准，点击“分析重音”。</li>
                 <li><strong>查看重音与翻译：</strong>系统自动为每个单词标注重音（ё 不重复标），点击单词可看中文翻译。</li>
                 <li><strong>调整语速与数字转换：</strong>可拖动语速滑块，下方数字转换器帮你读年份/百分数。</li>
-                <li><strong>分句练习：</strong>点击句子右侧 🔊 听示范，🔁 可循环。点击 <strong>开始</strong> 录音，读完后按 <strong>结束</strong> 查看评分。</li>
+                <li><strong>分句练习：</strong>🔊 听示范，⏸️暂停，⏹️停止，🔁循环。点击 <strong>开始</strong> 录音，读完后按 <strong>结束</strong> 查看评分。</li>
                 <li><strong>全篇模拟：</strong>按所选模式计时朗读，结束后评分。口语标准决定达标门槛（60%/75%/85%/90%）。</li>
                 <li><strong>修改稿件：</strong>练习页底部有“✏️ 修改稿件”，可随时返回修改。</li>
                 <li><strong>📌 公用激活码：</strong>输入 <code>11111111</code> 可激活，有效期1小时，每日可激活一次。</li>
@@ -534,21 +533,17 @@
             }
         }
 
-        // ========== 口语标准（准确率阈值） ==========
+        // ========== 口语标准 ==========
         function getAccuracyThreshold() {
             const level = document.getElementById('accuracyLevel').value;
             if (level === 'beginner') return 60;
             if (level === 'normal') return 75;
             if (level === 'advanced') return 85;
-            return 90; // native
+            return 90;
         }
 
-        // ========== 清空输入框 ==========
-        function clearInput() {
-            document.getElementById('textInput').value = '';
-        }
+        function clearInput() { document.getElementById('textInput').value = ''; }
 
-        // ========== 返回修改稿件 ==========
         function goBackToEdit() {
             document.getElementById('practiceArea').style.display = 'none';
             document.getElementById('inputArea').style.display = 'block';
@@ -556,9 +551,17 @@
             window.speechSynthesis.cancel();
             if (fullRecognition && isFullTestRunning) stopFullTest();
             loopSentenceIdx = -1;
+            // 清理所有单句语音
+            for (let key in sentenceVoices) {
+                if (sentenceVoices[key]) {
+                    sentenceVoices[key].utterance.onend = null;
+                    window.speechSynthesis.cancel();
+                }
+            }
+            sentenceVoices = {};
         }
 
-        // ========== 重音词典 ==========
+        // ========== 重音 ==========
         const stressDict = {
             "здравствуйте":"здра́вствуйте","как":"ка́к","дела":"дела́","спасибо":"спаси́бо",
             "пожалуйста":"пожа́луйста","меня":"меня́","зовут":"зову́т","студент":"студе́нт",
@@ -599,34 +602,62 @@
             return parts ? parts.map(s => s.trim()).filter(s => s) : [text];
         }
 
-        // ========== 语音控制 ==========
+        // ========== 语音播放（修复手机无声、单句控制） ==========
         let speechRate = 0.9;
         let currentUtterance = null;
         let isPaused = false;
         let loopSentenceIdx = -1;
+        // 单句语音控制：存储每个句子的 utterance 和暂停状态
+        let sentenceVoices = {};
+
         function updateRate(v) {
             speechRate = parseFloat(v);
             document.getElementById('rateValue').textContent = v + 'x';
         }
-        function speak(text, onEnd) {
+
+        // 统一的播放函数，自动处理手机静音激活
+        function speak(text, onEnd, voiceId) {
             if (!requireActivation()) return;
-            window.speechSynthesis.cancel();
+            // 激活语音引擎（解决 iOS 无声问题）
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
             const u = new SpeechSynthesisUtterance(text);
             u.lang = 'ru-RU';
             u.rate = speechRate;
-            currentUtterance = u;
-            isPaused = false;
-            document.getElementById('globalPauseBtn').textContent = '⏸️ 暂停';
-            document.getElementById('globalPauseBtn').disabled = false;
             u.onend = () => {
-                currentUtterance = null;
-                document.getElementById('globalPauseBtn').disabled = true;
+                if (voiceId) {
+                    delete sentenceVoices[voiceId];
+                    updateSentenceVoiceButtons(voiceId, false);
+                }
                 if (onEnd) onEnd();
+                // 检查是否还有全局 utterance
+                if (currentUtterance === u) {
+                    currentUtterance = null;
+                    document.getElementById('globalPauseBtn').disabled = true;
+                }
             };
+            u.onerror = () => {
+                if (voiceId) {
+                    delete sentenceVoices[voiceId];
+                    updateSentenceVoiceButtons(voiceId, false);
+                }
+            };
+            // 存储到全局或单句对象
+            if (voiceId) {
+                sentenceVoices[voiceId] = { utterance: u, paused: false };
+                updateSentenceVoiceButtons(voiceId, true);
+            } else {
+                currentUtterance = u;
+                isPaused = false;
+                document.getElementById('globalPauseBtn').textContent = '⏸️ 暂停';
+                document.getElementById('globalPauseBtn').disabled = false;
+            }
             window.speechSynthesis.speak(u);
         }
+
         function toggleGlobalPause() {
-            if (!requireActivation() || !currentUtterance) return;
+            if (!currentUtterance) return;
             if (isPaused) {
                 window.speechSynthesis.resume();
                 isPaused = false;
@@ -637,19 +668,56 @@
                 document.getElementById('globalPauseBtn').textContent = '▶️ 继续';
             }
         }
+
+        // 单句：播放、暂停、停止
         function playSentence(idx, loop = false) {
             if (!requireActivation()) return;
             const orig = originalSentences[idx];
             if (!orig) return;
-            const play = () => {
-                if (loop && loopSentenceIdx === idx) {
-                    speak(removeAccents(orig), () => { if (loopSentenceIdx === idx) playSentence(idx, true); });
-                } else {
-                    speak(removeAccents(orig));
+            // 如果已经有该句的语音在播放，则不再重新播放（除非被停止）
+            if (sentenceVoices[idx]) {
+                // 如果暂停中，则继续
+                if (sentenceVoices[idx].paused) {
+                    window.speechSynthesis.resume();
+                    sentenceVoices[idx].paused = false;
+                    updateSentenceVoiceButtons(idx, true);
                 }
+                return;
+            }
+            const playFunc = () => {
+                speak(removeAccents(orig), () => {
+                    if (loop && loopSentenceIdx === idx) {
+                        playSentence(idx, true);
+                    }
+                }, idx);
             };
-            play();
+            playFunc();
         }
+
+        function pauseSentence(idx) {
+            if (!sentenceVoices[idx]) return;
+            window.speechSynthesis.pause();
+            sentenceVoices[idx].paused = true;
+            updateSentenceVoiceButtons(idx, true); // 状态保持播放中但显示暂停可继续
+        }
+
+        function stopSentence(idx) {
+            if (sentenceVoices[idx]) {
+                sentenceVoices[idx].utterance.onend = null; // 防止触发循环
+                window.speechSynthesis.cancel();
+                delete sentenceVoices[idx];
+                updateSentenceVoiceButtons(idx, false);
+            }
+        }
+
+        function updateSentenceVoiceButtons(idx, isPlaying) {
+            const pauseBtn = document.getElementById('pauseBtn'+idx);
+            const stopBtn = document.getElementById('stopBtn'+idx);
+            if (pauseBtn) pauseBtn.disabled = !isPlaying;
+            if (stopBtn) stopBtn.disabled = !isPlaying;
+            // 可选改变图标
+        }
+
         function toggleLoop(idx) {
             if (loopSentenceIdx === idx) {
                 loopSentenceIdx = -1;
@@ -725,7 +793,6 @@
         const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
         const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
         const hundreds = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
-        const thousands = ['тысяча','тысячи','тысяч'];
         const millions = ['миллион','миллиона','миллионов'];
         const billions = ['миллиард','миллиарда','миллиардов'];
 
@@ -869,6 +936,7 @@
             document.getElementById('modeDescription').textContent = `当前模式：${desc}`;
             loopSentenceIdx = -1;
             sentenceRecognitions = {};
+            sentenceVoices = {};
         }
 
         function renderSentenceList() {
@@ -884,9 +952,11 @@
                         <br><small style="color:gray;">${orig}</small>
                     </div>
                     <div class="progress">
-                        <button class="play-btn" onclick="playSentence(${idx}, loopSentenceIdx===${idx})">🔊</button>
+                        <button class="play-btn" onclick="playSentence(${idx}, loopSentenceIdx===${idx})">▶️</button>
+                        <button class="pause-btn" id="pauseBtn${idx}" onclick="pauseSentence(${idx})" disabled>⏸️</button>
+                        <button class="stop-btn" id="stopBtn${idx}" onclick="stopSentence(${idx})" disabled>⏹️</button>
                         <button class="loop-btn" id="loopBtn${idx}" onclick="toggleLoop(${idx}); playSentence(${idx}, true)">🔁</button>
-                        <button id="recordBtn${idx}" onclick="toggleSentenceRecording(${idx})">▶️ 开始</button>
+                        <button id="recordBtn${idx}" onclick="toggleSentenceRecording(${idx})">🎤 开始</button>
                         <span id="score${idx}" style="font-weight:bold;">${sentenceScores[idx]!==undefined?sentenceScores[idx]+'%':'-'}</span>
                     </div>
                 </div>
@@ -906,7 +976,10 @@
 
         function startSentenceRecording(idx) {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(!SR) return alert('Нужен Chrome');
+            if(!SR) {
+                alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器。');
+                return;
+            }
             for (let key in sentenceRecognitions) {
                 if (key != idx && sentenceRecognitions[key]) stopSentenceRecording(parseInt(key));
             }
@@ -922,19 +995,18 @@
                 if (sentenceScores[idx] === undefined || acc > sentenceScores[idx]) sentenceScores[idx] = acc;
                 document.getElementById('score'+idx).innerText = acc+'%';
                 document.getElementById('diff'+idx).innerHTML = '📝 发音对比：'+renderDiff(diff);
-                delete sentenceRecognitions[idx];
-                document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
+                cleanupRecording(idx);
             };
             rec.onerror = (e) => {
-                alert('识别出错: ' + e.error);
-                delete sentenceRecognitions[idx];
-                document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
+                if (e.error === 'not-allowed') {
+                    alert('麦克风权限未开启，请在浏览器设置中允许使用麦克风。');
+                } else {
+                    alert('识别出错: ' + e.error);
+                }
+                cleanupRecording(idx);
             };
             rec.onend = () => {
-                if (sentenceRecognitions[idx]) {
-                    delete sentenceRecognitions[idx];
-                    document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
-                }
+                if (sentenceRecognitions[idx]) cleanupRecording(idx);
             };
             rec.start();
             sentenceRecognitions[idx] = { recognition: rec };
@@ -944,14 +1016,24 @@
         function stopSentenceRecording(idx) {
             if (!sentenceRecognitions[idx]) return;
             sentenceRecognitions[idx].recognition.stop();
+            cleanupRecording(idx);
+        }
+
+        function cleanupRecording(idx) {
             delete sentenceRecognitions[idx];
-            document.getElementById('recordBtn'+idx).textContent = '▶️ 开始';
+            document.getElementById('recordBtn'+idx).textContent = '🎤 开始';
         }
 
         function speakFullText() {
             if (!requireActivation()) return;
             window.speechSynthesis.cancel();
             loopSentenceIdx = -1;
+            // 停止所有单句语音
+            for (let key in sentenceVoices) {
+                if (sentenceVoices[key]) {
+                    delete sentenceVoices[key];
+                }
+            }
             speak(removeAccents(fullOriginalText));
         }
 
@@ -1003,7 +1085,6 @@
 
         function closeCongrats() { document.getElementById('congratsModal').style.display = 'none'; }
 
-        // ========== 帮助弹窗 ==========
         function openHelp() { document.getElementById('helpModal').style.display = 'flex'; }
         function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
         document.addEventListener('click', function(e) {
@@ -1011,7 +1092,6 @@
             if (e.target.id === 'congratsModal') closeCongrats();
         });
 
-        // ========== 初始化 ==========
         window.addEventListener('DOMContentLoaded', () => {
             startCountdown();
             handleModeChange();
