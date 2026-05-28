@@ -448,13 +448,11 @@
                     document.getElementById('activationError').textContent = '激活码无效或已过期。';
                     return;
                 }
-                // 本地检查
                 let used = JSON.parse(localStorage.getItem(USED_CODES_KEY) || '[]');
                 if (used.includes(codeKey)) {
                     document.getElementById('activationError').textContent = '该激活码已在此设备上使用过。';
                     return;
                 }
-                // 远程验证
                 const validation = await validateAndUseCode(codeKey);
                 if (!validation.success) {
                     document.getElementById('activationError').textContent = validation.message;
@@ -481,7 +479,7 @@
         };
 
         function addStress(word) {
-            if (/[ёЁ]/.test(word)) return word; // ё 不加重音
+            if (/[ёЁ]/.test(word)) return word;
             const lower = word.toLowerCase();
             if (stressDict[lower]) return stressDict[lower];
             if (/[аяуюеёиыоэ]$/i.test(word) && word.length > 3) {
@@ -775,7 +773,6 @@
         // ========== 帮助弹窗 ==========
         function openHelp() { document.getElementById('helpModal').style.display = 'flex'; }
         function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
-        // 点击遮罩关闭帮助和祝贺
         document.addEventListener('click', function(e) {
             if (e.target.id === 'helpModal') closeHelp();
             if (e.target.id === 'congratsModal') closeCongrats();
