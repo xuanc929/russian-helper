@@ -242,6 +242,14 @@
             color: #174ea6;
             font-weight: 500;
         }
+        .number-result {
+            background: #f0f9ff;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-top: 12px;
+            font-size: 1.1em;
+            border-left: 4px solid var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -267,7 +275,6 @@
     <h1>🎓 俄语答辩朗读练习 <span style="font-size:0.8em;color:#888;">— твой голос, твоя защита</span></h1>
 
     <div class="card" id="inputArea">
-        <!-- 新增提示 -->
         <div class="help-tip">💡 首次使用？请先点击右上角「📘 使用指南」阅读详细说明。</div>
         <h2>📄 输入你的答辩稿</h2>
         <textarea id="textInput" placeholder="Вставьте текст защиты..."></textarea>
@@ -284,9 +291,19 @@
             </span>
         </div>
         <button onclick="processText()">✨ 分析重音并开始练习</button>
-        <!-- 新增清空按钮 -->
         <button onclick="clearInput()" style="background:#f0f0f0; color:#333; box-shadow:none;">🧹 清空输入框</button>
         <p style="font-size:0.9em;color:#6b7a99;">按句号、问号、感叹号自动分句</p>
+    </div>
+
+    <!-- 数字/年份转换器卡片 -->
+    <div class="card" id="numberConverterCard">
+        <h2>🔢 数字/年份转换器</h2>
+        <p style="color:#555;">输入数字（如 2023、250），自动转换成俄语单词（附带年份读法建议）。</p>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <input type="number" id="numberInput" placeholder="输入数字" style="flex:1; padding:10px; border-radius:10px; border:2px solid #e0e4f0; font-size:16px;">
+            <button onclick="convertNumber()">转换</button>
+        </div>
+        <div class="number-result" id="numberResult" style="display:none;"></div>
     </div>
 
     <div class="card" id="practiceArea" style="display:none;">
@@ -316,6 +333,8 @@
         <button id="stopFullTestBtn" onclick="stopFullTest()" disabled>⏹️ 停止并评分</button>
         <div class="timer" id="fullTimer">00:00</div>
         <div id="fullTestResult"></div>
+        <!-- 修改稿件按钮 -->
+        <button onclick="goBackToEdit()" style="background:#f8f9fa; color:#333; margin-top:20px; box-shadow:none;">✏️ 修改稿件</button>
     </div>
 
     <!-- 祝贺弹窗 -->
@@ -328,7 +347,7 @@
         </div>
     </div>
 
-    <!-- 帮助弹窗（新增万能激活码说明） -->
+    <!-- 帮助弹窗 -->
     <div id="helpModal" class="modal-overlay" style="display:none;">
         <div class="modal" style="max-width:480px; text-align:left;">
             <h2>📘 使用指南</h2>
@@ -340,6 +359,7 @@
                 <li><strong>分句练习：</strong>🔊 听示范；🔁 循环；🎤 录音打分。</li>
                 <li><strong>全篇模拟：</strong>根据所选模式计时，读完后评分。</li>
                 <li><strong>达标标准：</strong>在限定时间内读完且准确率 ≥ 90%，即视为达标（自由练习不限时只看准确率）。</li>
+                <li><strong>修改稿件：</strong>练习界面底部有“✏️ 修改稿件”按钮，可随时返回修改。</li>
                 <li><strong>📌 公用激活码：</strong>输入 <code>11111111</code> 可激活，有效期1小时，每日可激活一次。</li>
             </ol>
             <p style="color:#888;">💡 使用 Chrome 浏览器，允许麦克风权限，效果最佳。</p>
@@ -353,10 +373,10 @@
     <div id="translationPopup" class="translation-popup" style="display:none;"></div>
 
     <script>
-        // ========== 会员激活系统（含万能码与防重复） ==========
+        // ========== 会员激活系统（万能码+防重复） ==========
         const ACTIVATION_KEY = 'rus_accent_activation';
         const USED_CODES_KEY = 'rus_accent_used_codes';
-        const FREE_ACTIVATION_DATE_KEY = 'rus_accent_free_date'; // 万能码使用日期
+        const FREE_ACTIVATION_DATE_KEY = 'rus_accent_free_date';
         const COUNTAPI_NS = 'russian-helper';
         let membershipTimer = null;
 
@@ -433,8 +453,6 @@
             }
             return true;
         }
-
-        // 万能码处理
         function isToday(dateString) {
             const today = new Date().toISOString().slice(0,10);
             return dateString === today;
@@ -444,14 +462,11 @@
             if (lastDate && isToday(lastDate)) {
                 return { success: false, message: '今天已使用过公用码，请明天再试。' };
             }
-            // 首次或新的一天，允许激活
-            const expire = Date.now() + 3600000; // 1小时
+            const expire = Date.now() + 3600000;
             localStorage.setItem(FREE_ACTIVATION_DATE_KEY, new Date().toISOString().slice(0,10));
             saveActivation(expire, 'FREE_MAGIC');
             return { success: true };
         }
-
-        // 远程验证激活码唯一性（非万能码）
         async function validateAndUseCode(codeKey) {
             const getUrl = `https://api.countapi.xyz/get/${COUNTAPI_NS}/${codeKey}`;
             const hitUrl = `https://api.countapi.xyz/hit/${COUNTAPI_NS}/${codeKey}`;
@@ -467,11 +482,9 @@
                 return { success: false, message: '网络异常，激活验证失败，请检查网络后重试。' };
             }
         }
-
         async function activate() {
             const code = document.getElementById('activationCode').value.trim();
             if (!code) return;
-            // 万能码处理
             if (code === '11111111') {
                 const result = await tryFreeActivation();
                 if (result.success) {
@@ -481,7 +494,6 @@
                 }
                 return;
             }
-            // 普通激活码
             try {
                 const decoded = atob(code);
                 const parts = decoded.split('|');
@@ -514,7 +526,18 @@
             document.getElementById('textInput').value = '';
         }
 
-        // ========== 内置重音词典 + 规则（ё 智能处理） ==========
+        // ========== 返回修改稿件 ==========
+        function goBackToEdit() {
+            document.getElementById('practiceArea').style.display = 'none';
+            document.getElementById('inputArea').style.display = 'block';
+            document.getElementById('textInput').value = fullOriginalText;
+            // 停止可能正在播放的语音
+            window.speechSynthesis.cancel();
+            if (fullRecognition && isFullTestRunning) stopFullTest();
+            loopSentenceIdx = -1;
+        }
+
+        // ========== 内置重音词典 + 规则 ==========
         const stressDict = {
             "здравствуйте":"здра́вствуйте","как":"ка́к","дела":"дела́","спасибо":"спаси́бо",
             "пожалуйста":"пожа́луйста","меня":"меня́","зовут":"зову́т","студент":"студе́нт",
@@ -526,7 +549,6 @@
             "говорю":"говорю́","читаю":"чита́ю","пишу":"пишу́","смотрю":"смотрю́",
             "думаю":"ду́маю","считаю":"счита́ю","верю":"ве́рю","люблю":"люблю́"
         };
-
         function addStress(word) {
             if (/[ёЁ]/.test(word)) return word;
             const lower = word.toLowerCase();
@@ -677,6 +699,46 @@
         }
         function formatTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
 
+        // ========== 数字转俄语单词 ==========
+        const ones = ['','один','два','три','четыре','пять','шесть','семь','восемь','девять'];
+        const teens = ['десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
+        const tens = ['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
+        const hundreds = ['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
+        const thousands = ['тысяча','тысячи','тысяч'];
+        function numToWords(n) {
+            if (n === 0) return 'ноль';
+            if (n < 10) return ones[n];
+            if (n < 20) return teens[n-10];
+            if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? ' ' + ones[n%10] : '');
+            if (n < 1000) return hundreds[Math.floor(n/100)] + (n%100 ? ' ' + numToWords(n%100) : '');
+            // тысячи
+            const t = Math.floor(n/1000);
+            const rest = n%1000;
+            let tWord = '';
+            if (t === 1) tWord = 'одна тысяча';
+            else if (t === 2) tWord = 'две тысячи';
+            else if (t < 5) tWord = numToWords(t).replace('один','одна').replace('два','две') + ' тысячи';
+            else tWord = numToWords(t) + ' тысяч';
+            return tWord + (rest ? ' ' + numToWords(rest) : '');
+        }
+        function convertNumber() {
+            const input = document.getElementById('numberInput').value.trim();
+            if (!input) return;
+            const num = parseInt(input, 10);
+            if (isNaN(num) || num < 0 || num > 999999) {
+                document.getElementById('numberResult').style.display = 'block';
+                document.getElementById('numberResult').innerHTML = '⚠️ 请输入0-999999之间的数字';
+                return;
+            }
+            const words = numToWords(num);
+            let yearHint = '';
+            if (input.length === 4 && num >= 1000) {
+                yearHint = `<br>📅 年份读法：<strong>${words} год</strong> (或 две тысячи ... год)`;
+            }
+            document.getElementById('numberResult').style.display = 'block';
+            document.getElementById('numberResult').innerHTML = `🔤 数字读法：<strong>${words}</strong>${yearHint}`;
+        }
+
         // ========== 练习模式 ==========
         let currentTimeLimit = 7*60;
         let isTimeLimited = true;
@@ -693,12 +755,6 @@
                 const mins = parseInt(document.getElementById('customMinutes').value)||5;
                 currentTimeLimit = mins*60; isTimeLimited=true;
             }
-            let desc = '';
-            if (mode==='bachelor') desc='本科答辩，时间限制 7 分钟';
-            else if (mode==='master') desc='研究生答辩，时间限制 10 分钟';
-            else if (mode==='free_unlimited') desc='自由练习，不限时间';
-            else desc=`自由练习，时间限制 ${Math.floor(currentTimeLimit/60)} 分钟`;
-            document.getElementById('modeDescription').textContent = `当前模式：${desc}`;
         }
 
         // ========== 全局状态 ==========
@@ -718,6 +774,14 @@
             document.getElementById('inputArea').style.display='none';
             document.getElementById('practiceArea').style.display='block';
             document.getElementById('fullTestResult').innerHTML='';
+            // 更新模式描述
+            let desc = '';
+            const mode = document.getElementById('practiceMode').value;
+            if (mode==='bachelor') desc='本科答辩，时间限制 7 分钟';
+            else if (mode==='master') desc='研究生答辩，时间限制 10 分钟';
+            else if (mode==='free_unlimited') desc='自由练习，不限时间';
+            else desc=`自由练习，时间限制 ${Math.floor(currentTimeLimit/60)} 分钟`;
+            document.getElementById('modeDescription').textContent = `当前模式：${desc}`;
             loopSentenceIdx = -1;
         }
 
