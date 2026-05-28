@@ -808,21 +808,24 @@
         function showWordPopup(word, event) {
             const popup = document.getElementById('translationPopup');
             const cleanWord = removeAccents(word);
-            // 显示翻译中
-            popup.innerHTML = `<div>翻译中...</div>`;
+
+            // 立即显示弹窗框架
+            popup.innerHTML = `
+                <div style="margin-bottom:8px;"><strong>${word}</strong>: <span id="popupTrans">翻译中...</span></div>
+                <div class="correct-stress-popup">
+                    <div style="font-size:0.85em;color:#555;margin-bottom:4px;">修正重音：</div>
+                    <input type="text" id="correctStressInput" value="${cleanWord}" placeholder="输入正确重音形式 (如 защи́та)">
+                    <button onclick="applyCorrection('${cleanWord}')">💾 保存修正</button>
+                </div>
+            `;
             popup.style.display = 'block';
             popup.style.left = event.pageX + 'px';
             popup.style.top = (event.pageY - 30) + 'px';
 
+            // 异步获取翻译并更新
             translateWord(cleanWord).then(trans => {
-                popup.innerHTML = `
-                    <div style="margin-bottom:8px;"><strong>${word}</strong>: ${trans}</div>
-                    <div class="correct-stress-popup">
-                        <div style="font-size:0.85em;color:#555;margin-bottom:4px;">修正重音：</div>
-                        <input type="text" id="correctStressInput" value="${cleanWord}" placeholder="输入正确重音形式 (如 защи́та)">
-                        <button onclick="applyCorrection('${cleanWord}')">💾 保存修正</button>
-                    </div>
-                `;
+                const span = document.getElementById('popupTrans');
+                if (span) span.textContent = trans;
             });
         }
 
@@ -833,15 +836,9 @@
             if (corrected) {
                 userStressDict[cleanWord.toLowerCase()] = corrected;
                 saveUserDict();
-                alert('修正已保存！刷新页面或重新分析文本即可生效。');
-                // 立即更新当前页面
-                document.querySelectorAll('.word').forEach(span => {
-                    if (removeAccents(span.textContent).toLowerCase() === cleanWord.toLowerCase()) {
-                        span.textContent = corrected;
-                    }
-                });
+                alert('修正已保存！请点击“修改稿件”返回并重新分析以刷新重音。');
+                document.getElementById('translationPopup').style.display = 'none';
             }
-            document.getElementById('translationPopup').style.display = 'none';
         }
 
         function makeWordsClickable(html) {
@@ -857,7 +854,7 @@
             }
         });
 
-        // ========== 语音播放 ==========
+        // ========== 语音播放（单句控制） ==========
         let speechRate = 0.9;
         let currentUtterance = null;
         let isPaused = false;
